@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TeamTalk.Api/TeamTalk.Api.csproj" />
+    <Project Path="src/TeamTalk.Application/TeamTalk.Application.csproj" />
+    <Project Path="src/TeamTalk.Domain/TeamTalk.Domain.csproj" />
+    <Project Path="src/TeamTalk.Hub/TeamTalk.Hub.csproj" />
+    <Project Path="src/TeamTalk.Infrastructure/TeamTalk.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/AppHost/">
+    <Project Path="src/AppHost/TeamTalk.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/src/ServiceDefaults/">
+    <Project Path="src/ServiceDefaults/TeamTalk.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/TeamTalk.Api.IntegrationTests/TeamTalk.Api.IntegrationTests.csproj" />
+    <Project Path="test/TeamTalk.Application.Tests/TeamTalk.Application.Tests.csproj" />
+    <Project Path="test/TeamTalk.Domain.Tests/TeamTalk.Domain.Tests.csproj" />
+    <Project Path="test/TeamTalk.Infrastructure.Tests/TeamTalk.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

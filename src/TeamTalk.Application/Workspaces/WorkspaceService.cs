@@ -1,0 +1,71 @@
+using ErrorOr;
+using TeamTalk.Application.Common.Errors;
+using TeamTalk.Application.Workspaces.Contracts;
+using TeamTalk.Domain.Entities;
+using TeamTalk.Domain.Enums;
+using TeamTalk.Domain.Repositories;
+
+namespace TeamTalk.Application.Workspaces;
+
+public class WorkspaceService : IWorkspaceService
+{
+    private readonly IWorkspaceRepository _workspaceRepository;
+    private readonly IWorkspaceMemberRepository _workspaceMemberRepository;
+
+    public WorkspaceService(IWorkspaceRepository workspaceRepository, IWorkspaceMemberRepository workspaceMemberRepository)
+    {
+        _workspaceRepository = workspaceRepository;
+        _workspaceMemberRepository = workspaceMemberRepository;
+    }
+
+    public async Task<ErrorOr<WorkspaceResponse>> CreateAsync(Guid userId, CreateWorkspaceRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return Error.Validation("Workspace.NameRequired", "Workspace name is required.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var workspace = new Workspace(Guid.CreateVersion7(), request.Name, userId, nowUtc);
+        await _workspaceRepository.AddAsync(workspace, cancellationToken);
+
+        var member = new WorkspaceMember(Guid.CreateVersion7(), workspace.Id, userId, WorkspaceRole.Admin, nowUtc);
+        await _workspaceMemberRepository.AddAsync(member, cancellationToken);
+
+        return ToResponse(workspace);
+    }
+
+    public async Task<ErrorOr<IReadOnlyList<WorkspaceResponse>>> GetForUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var workspaces = await _workspaceRepository.GetForUserAsync(userId, cancellationToken);
+        return workspaces.Select(ToResponse).ToList();
+    }
+
+    public async Task<ErrorOr<WorkspaceResponse>> GetByIdAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var isMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId, cancellationToken);
+        if (!isMember)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        return ToResponse(workspace);
+    }
+
+    private static WorkspaceResponse ToResponse(Workspace workspace)
+    {
+        return new WorkspaceResponse
+        {
+            Id = workspace.Id,
+            Name = workspace.Name,
+            CreatedByUserId = workspace.CreatedByUserId,
+            CreatedAtUtc = workspace.CreatedAtUtc,
+        };
+    }
+}

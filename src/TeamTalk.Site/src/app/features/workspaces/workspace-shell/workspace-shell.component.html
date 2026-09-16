@@ -1,0 +1,44 @@
+<div class="flex min-h-screen">
+  <aside class="flex w-64 flex-col gap-4 border-r border-base-300 bg-base-200 p-4">
+    <h2 class="text-lg font-semibold text-base-content">{{ workspace()?.name }}</h2>
+
+    <p-button label="New channel" icon="pi pi-plus" (onClick)="openCreateDialog()" styleClass="w-full" />
+
+    <nav class="flex flex-col gap-1">
+      @for (channel of channels(); track channel.id) {
+        <button
+          type="button"
+          class="rounded-field px-3 py-2 text-left text-base-content hover:bg-base-300"
+          (click)="openChannel(channel)"
+        >
+          @if (channel.type === 'Private') {
+            <i class="pi pi-lock mr-1 text-xs"></i>
+          } @else {
+            <span class="mr-1">#</span>
+          }
+          {{ channel.name }}
+        </button>
+      }
+    </nav>
+  </aside>
+
+  <main class="flex-1 bg-base-100">
+    <router-outlet />
+  </main>
+</div>
+
+<p-dialog header="Create channel" [(visible)]="isCreateDialogVisible" [modal]="true">
+  <form class="flex flex-col gap-4" [formGroup]="createForm" (ngSubmit)="onCreateSubmit()">
+    <label class="flex flex-col gap-1 text-sm text-base-content">
+      Channel name
+      <input pInputText type="text" formControlName="name" />
+    </label>
+
+    <label class="flex flex-col gap-1 text-sm text-base-content">
+      Type
+      <p-select [options]="channelTypes" optionLabel="label" optionValue="value" formControlName="type" />
+    </label>
+
+    <p-button type="submit" label="Create" [disabled]="createForm.invalid" />
+  </form>
+</p-dialog>
