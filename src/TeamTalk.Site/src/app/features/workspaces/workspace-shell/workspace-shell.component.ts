@@ -31,6 +31,7 @@ export class WorkspaceShellComponent implements OnInit {
   readonly workspace = signal<WorkspaceResponse | null>(null);
   readonly channels = signal<ChannelResponse[]>([]);
   readonly isCreateDialogVisible = signal(false);
+  readonly errorMessage = signal<string | null>(null);
 
   readonly channelTypes: ChannelTypeOption[] = [
     { label: 'Public', value: 'Public' },
@@ -43,12 +44,16 @@ export class WorkspaceShellComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.workspaceService.getByIdAsync(this.workspaceId).subscribe((workspace) => this.workspace.set(workspace));
+    this.workspaceService.getByIdAsync(this.workspaceId).subscribe({
+      next: (workspace) => this.workspace.set(workspace),
+      error: () => this.errorMessage.set('Could not load this workspace.'),
+    });
     this.loadChannels();
   }
 
   openCreateDialog(): void {
     this.createForm.reset({ name: '', type: 'Public' });
+    this.errorMessage.set(null);
     this.isCreateDialogVisible.set(true);
   }
 
@@ -57,10 +62,16 @@ export class WorkspaceShellComponent implements OnInit {
       return;
     }
 
-    this.channelService.createAsync(this.workspaceId, this.createForm.getRawValue()).subscribe((channel) => {
-      this.isCreateDialogVisible.set(false);
-      this.loadChannels();
-      this.openChannel(channel);
+    this.errorMessage.set(null);
+    this.channelService.createAsync(this.workspaceId, this.createForm.getRawValue()).subscribe({
+      next: (channel) => {
+        this.isCreateDialogVisible.set(false);
+        this.loadChannels();
+        this.openChannel(channel);
+      },
+      error: () => {
+        this.errorMessage.set('Could not create the channel. Please try again.');
+      },
     });
   }
 
@@ -69,6 +80,9 @@ export class WorkspaceShellComponent implements OnInit {
   }
 
   private loadChannels(): void {
-    this.channelService.getVisibleAsync(this.workspaceId).subscribe((channels) => this.channels.set(channels));
+    this.channelService.getVisibleAsync(this.workspaceId).subscribe({
+      next: (channels) => this.channels.set(channels),
+      error: () => this.errorMessage.set('Could not load channels for this workspace.'),
+    });
   }
 }

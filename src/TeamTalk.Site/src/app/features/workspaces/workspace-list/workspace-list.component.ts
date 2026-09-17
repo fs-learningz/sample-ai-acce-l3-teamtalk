@@ -19,6 +19,7 @@ export class WorkspaceListComponent implements OnInit {
 
   readonly workspaces = signal<WorkspaceResponse[]>([]);
   readonly isCreateDialogVisible = signal(false);
+  readonly errorMessage = signal<string | null>(null);
 
   readonly createForm = this.formBuilder.nonNullable.group({
     name: ['', Validators.required],
@@ -30,6 +31,7 @@ export class WorkspaceListComponent implements OnInit {
 
   openCreateDialog(): void {
     this.createForm.reset();
+    this.errorMessage.set(null);
     this.isCreateDialogVisible.set(true);
   }
 
@@ -38,10 +40,16 @@ export class WorkspaceListComponent implements OnInit {
       return;
     }
 
-    this.workspaceService.createAsync(this.createForm.getRawValue()).subscribe((workspace) => {
-      this.isCreateDialogVisible.set(false);
-      this.loadWorkspaces();
-      void this.router.navigate(['/workspaces', workspace.id]);
+    this.errorMessage.set(null);
+    this.workspaceService.createAsync(this.createForm.getRawValue()).subscribe({
+      next: (workspace) => {
+        this.isCreateDialogVisible.set(false);
+        this.loadWorkspaces();
+        void this.router.navigate(['/workspaces', workspace.id]);
+      },
+      error: () => {
+        this.errorMessage.set('Could not create the workspace. Please try again.');
+      },
     });
   }
 
@@ -50,6 +58,9 @@ export class WorkspaceListComponent implements OnInit {
   }
 
   private loadWorkspaces(): void {
-    this.workspaceService.getForCurrentUserAsync().subscribe((workspaces) => this.workspaces.set(workspaces));
+    this.workspaceService.getForCurrentUserAsync().subscribe({
+      next: (workspaces) => this.workspaces.set(workspaces),
+      error: () => this.errorMessage.set('Could not load your workspaces. Please refresh the page.'),
+    });
   }
 }

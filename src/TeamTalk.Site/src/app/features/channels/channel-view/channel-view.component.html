@@ -42,4 +42,8 @@
     <input pInputText type="text" formControlName="content" class="flex-1" placeholder="Message this channel" />
     <p-button type="submit" label="Send" [disabled]="sendForm.invalid" />
   </form>
+
+  @if (errorMessage()) {
+    <p class="border-t border-base-300 bg-base-100 px-4 pb-2 text-sm text-error">{{ errorMessage() }}</p>
+  }
 </div>

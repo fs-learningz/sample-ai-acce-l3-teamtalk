@@ -4,6 +4,10 @@
 
     <p-button label="New channel" icon="pi pi-plus" (onClick)="openCreateDialog()" styleClass="w-full" />
 
+    @if (errorMessage()) {
+      <p class="text-sm text-error">{{ errorMessage() }}</p>
+    }
+
     <nav class="flex flex-col gap-1">
       @for (channel of channels(); track channel.id) {
         <button

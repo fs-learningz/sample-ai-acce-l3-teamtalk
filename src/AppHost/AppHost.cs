@@ -22,7 +22,7 @@ var api = builder.AddProject<Projects.TeamTalk_Api>("api")
     .WithHttpEndpoint(port: 5080, name: "http")
     .WaitFor(sqlDb);
 
-builder.AddJavaScriptApp("site", "../TeamTalk.Site", "start")
+builder.AddViteApp("site", "../TeamTalk.Site", "start")
     .WithReference(api)
     .WithReference(hub)
     .WithHttpEndpoint(env: "PORT")

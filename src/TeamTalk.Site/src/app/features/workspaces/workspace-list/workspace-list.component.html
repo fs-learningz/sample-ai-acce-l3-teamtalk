@@ -4,6 +4,10 @@
     <p-button label="New workspace" icon="pi pi-plus" (onClick)="openCreateDialog()" />
   </div>
 
+  @if (errorMessage()) {
+    <p class="mb-4 text-sm text-error">{{ errorMessage() }}</p>
+  }
+
   @if (workspaces().length === 0) {
     <p class="text-base-content">You don't belong to any workspace yet.</p>
   }

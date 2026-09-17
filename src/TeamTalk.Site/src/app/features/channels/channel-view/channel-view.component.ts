@@ -27,6 +27,7 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
 
   readonly messages = signal<MessageResponse[]>([]);
   readonly editingMessageId = signal<string | null>(null);
+  readonly errorMessage = signal<string | null>(null);
 
   readonly sendForm = this.formBuilder.nonNullable.group({
     content: ['', Validators.required],
@@ -67,10 +68,14 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.errorMessage.set(null);
     const content = this.sendForm.getRawValue().content;
-    this.channelMessageService.sendAsync(this.workspaceId, this.channelId, { content }).subscribe((message) => {
-      this.applyIncoming(message);
-      this.sendForm.reset({ content: '' });
+    this.channelMessageService.sendAsync(this.workspaceId, this.channelId, { content }).subscribe({
+      next: (message) => {
+        this.applyIncoming(message);
+        this.sendForm.reset({ content: '' });
+      },
+      error: () => this.errorMessage.set('Could not send the message. Please try again.'),
     });
   }
 
@@ -88,20 +93,26 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.errorMessage.set(null);
     const content = this.editForm.getRawValue().content;
-    this.channelMessageService.editAsync(this.workspaceId, this.channelId, message.id, { content }).subscribe(
-      (updated) => {
+    this.channelMessageService.editAsync(this.workspaceId, this.channelId, message.id, { content }).subscribe({
+      next: (updated) => {
         this.applyIncoming(updated);
         this.editingMessageId.set(null);
       },
-    );
+      error: () => this.errorMessage.set('Could not save the edit. Please try again.'),
+    });
   }
 
   deleteMessage(message: MessageResponse): void {
-    this.channelMessageService.deleteAsync(this.workspaceId, this.channelId, message.id).subscribe(() => {
-      this.messages.update((current) =>
-        current.map((m) => (m.id === message.id ? { ...m, isDeleted: true, content: '[deleted]' } : m)),
-      );
+    this.errorMessage.set(null);
+    this.channelMessageService.deleteAsync(this.workspaceId, this.channelId, message.id).subscribe({
+      next: () => {
+        this.messages.update((current) =>
+          current.map((m) => (m.id === message.id ? { ...m, isDeleted: true, content: '[deleted]' } : m)),
+        );
+      },
+      error: () => this.errorMessage.set('Could not delete the message. Please try again.'),
     });
   }
 
@@ -123,8 +134,9 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
   }
 
   private loadHistory(): void {
-    this.channelMessageService.getHistoryAsync(this.workspaceId, this.channelId, null, 50).subscribe((page) => {
-      this.messages.set([...page.items].reverse());
+    this.channelMessageService.getHistoryAsync(this.workspaceId, this.channelId, null, 50).subscribe({
+      next: (page) => this.messages.set([...page.items].reverse()),
+      error: () => this.errorMessage.set('Could not load messages for this channel.'),
     });
   }
 
