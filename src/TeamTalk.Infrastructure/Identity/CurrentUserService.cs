@@ -31,4 +31,12 @@ public class CurrentUserService : ICurrentUserService
             return null;
         }
     }
+
+    public string? Email
+    {
+        get
+        {
+            return _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value;
+        }
+    }
 }

@@ -22,16 +22,16 @@ builder.Services.AddOpenApi();
 builder.Services.AddApplication();
 builder.AddInfrastructure();
 
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey))
-{
-    throw new InvalidOperationException("Jwt:Key configuration is missing.");
-}
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        var jwtKey = builder.Configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+        {
+            throw new InvalidOperationException("Jwt:Key configuration is missing.");
+        }
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = false,

@@ -57,6 +57,10 @@ export class WorkspaceListComponent implements OnInit {
     void this.router.navigate(['/workspaces', workspace.id]);
   }
 
+  openInvitations(): void {
+    void this.router.navigate(['/invitations']);
+  }
+
   private loadWorkspaces(): void {
     this.workspaceService.getForCurrentUserAsync().subscribe({
       next: (workspaces) => this.workspaces.set(workspaces),

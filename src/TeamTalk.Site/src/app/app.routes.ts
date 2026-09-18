@@ -17,6 +17,14 @@ export const routes: Routes = [
       import('./features/workspaces/workspace-list/workspace-list.component').then((m) => m.WorkspaceListComponent),
   },
   {
+    path: 'invitations',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/invitations/invitation-list/invitation-list.component').then(
+        (m) => m.InvitationListComponent,
+      ),
+  },
+  {
     path: 'workspaces/:workspaceId',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -13,4 +13,9 @@ public static class WorkspaceErrors
     {
         get { return Error.Forbidden("Workspace.NotAMember", "You are not a member of this workspace."); }
     }
+
+    public static Error NotAnAdmin
+    {
+        get { return Error.Forbidden("Workspace.NotAnAdmin", "Only workspace admins can perform this action."); }
+    }
 }

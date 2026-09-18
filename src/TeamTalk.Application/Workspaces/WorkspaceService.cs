@@ -32,13 +32,13 @@ public class WorkspaceService : IWorkspaceService
         var member = new WorkspaceMember(Guid.CreateVersion7(), workspace.Id, userId, WorkspaceRole.Admin, nowUtc);
         await _workspaceMemberRepository.AddAsync(member, cancellationToken);
 
-        return ToResponse(workspace);
+        return ToResponse(workspace, member.Role);
     }
 
     public async Task<ErrorOr<IReadOnlyList<WorkspaceResponse>>> GetForUserAsync(Guid userId, CancellationToken cancellationToken)
     {
         var workspaces = await _workspaceRepository.GetForUserAsync(userId, cancellationToken);
-        return workspaces.Select(ToResponse).ToList();
+        return workspaces.Select(w => ToResponse(w)).ToList();
     }
 
     public async Task<ErrorOr<WorkspaceResponse>> GetByIdAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
@@ -49,16 +49,16 @@ public class WorkspaceService : IWorkspaceService
             return WorkspaceErrors.NotFound;
         }
 
-        var isMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId, cancellationToken);
-        if (!isMember)
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        if (member is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        return ToResponse(workspace);
+        return ToResponse(workspace, member.Role);
     }
 
-    private static WorkspaceResponse ToResponse(Workspace workspace)
+    private static WorkspaceResponse ToResponse(Workspace workspace, WorkspaceRole? currentUserRole = null)
     {
         return new WorkspaceResponse
         {
@@ -66,6 +66,7 @@ public class WorkspaceService : IWorkspaceService
             Name = workspace.Name,
             CreatedByUserId = workspace.CreatedByUserId,
             CreatedAtUtc = workspace.CreatedAtUtc,
+            CurrentUserRole = currentUserRole,
         };
     }
 }

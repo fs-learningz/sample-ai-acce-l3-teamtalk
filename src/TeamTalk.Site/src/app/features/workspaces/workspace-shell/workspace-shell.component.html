@@ -4,6 +4,16 @@
 
     <p-button label="New channel" icon="pi pi-plus" (onClick)="openCreateDialog()" styleClass="w-full" />
 
+    @if (isAdmin()) {
+      <p-button
+        label="Invite member"
+        icon="pi pi-user-plus"
+        severity="secondary"
+        (onClick)="openInviteDialog()"
+        styleClass="w-full"
+      />
+    }
+
     @if (errorMessage()) {
       <p class="text-sm text-error">{{ errorMessage() }}</p>
     }
@@ -24,6 +34,25 @@
         </button>
       }
     </nav>
+
+    @if (isAdmin() && invitations().length > 0) {
+      <div class="flex flex-col gap-1">
+        <h3 class="text-xs font-semibold uppercase text-base-content/60">Pending invitations</h3>
+        @for (invitation of invitations(); track invitation.id) {
+          <div class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content">
+            <span class="truncate">{{ invitation.email }}</span>
+            <button
+              type="button"
+              class="text-base-content/60 hover:text-error"
+              title="Revoke invitation"
+              (click)="revokeInvitation(invitation)"
+            >
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+        }
+      </div>
+    }
   </aside>
 
   <main class="flex-1 bg-base-100">
@@ -44,5 +73,25 @@
     </label>
 
     <p-button type="submit" label="Create" [disabled]="createForm.invalid" />
+  </form>
+</p-dialog>
+
+<p-dialog header="Invite member" [(visible)]="isInviteDialogVisible" [modal]="true">
+  <form class="flex flex-col gap-4" [formGroup]="inviteForm" (ngSubmit)="onInviteSubmit()">
+    @if (inviteErrorMessage()) {
+      <p class="text-sm text-error">{{ inviteErrorMessage() }}</p>
+    }
+
+    <label class="flex flex-col gap-1 text-sm text-base-content">
+      Email
+      <input pInputText type="email" formControlName="email" />
+    </label>
+
+    <label class="flex flex-col gap-1 text-sm text-base-content">
+      Role
+      <p-select [options]="workspaceRoles" optionLabel="label" optionValue="value" formControlName="role" />
+    </label>
+
+    <p-button type="submit" label="Send invitation" [disabled]="inviteForm.invalid" />
   </form>
 </p-dialog>
