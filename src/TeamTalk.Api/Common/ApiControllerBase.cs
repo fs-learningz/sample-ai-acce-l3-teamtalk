@@ -26,4 +26,18 @@ public abstract class ApiControllerBase : ControllerBase
             return userId.Value;
         }
     }
+
+    protected string CurrentUserEmail
+    {
+        get
+        {
+            var email = _currentUserService.Email;
+            if (email is null)
+            {
+                throw new InvalidOperationException("User is not authenticated.");
+            }
+
+            return email;
+        }
+    }
 }

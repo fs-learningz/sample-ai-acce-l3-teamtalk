@@ -65,6 +65,12 @@ public class IdentityService : IIdentityService
         return ToResult(user);
     }
 
+    public async Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        return user?.Id;
+    }
+
     private static IdentityUserResult ToResult(ApplicationUser user)
     {
         return new IdentityUserResult

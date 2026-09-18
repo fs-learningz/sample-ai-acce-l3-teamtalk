@@ -261,6 +261,41 @@ namespace TeamTalk.Infrastructure.Persistence.Migrations
                     b.ToTable("Workspaces", (string)null);
                 });
 
+            modelBuilder.Entity("TeamTalk.Domain.Entities.WorkspaceInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("InvitedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("RespondedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "Email");
+
+                    b.ToTable("WorkspaceInvitations", (string)null);
+                });
+
             modelBuilder.Entity("TeamTalk.Domain.Entities.WorkspaceMember", b =>
                 {
                     b.Property<Guid>("Id")

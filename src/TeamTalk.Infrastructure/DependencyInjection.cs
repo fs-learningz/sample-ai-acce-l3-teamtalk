@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using TeamTalk.Application.Common;
 using TeamTalk.Application.Common.Interfaces;
 using TeamTalk.Domain.Repositories;
+using TeamTalk.Infrastructure.Email;
 using TeamTalk.Infrastructure.Identity;
 using TeamTalk.Infrastructure.Persistence;
 using TeamTalk.Infrastructure.Persistence.Repositories;
@@ -34,6 +35,7 @@ public static class DependencyInjection
 
         builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
         builder.Services.AddScoped<IWorkspaceMemberRepository, WorkspaceMemberRepository>();
+        builder.Services.AddScoped<IWorkspaceInvitationRepository, WorkspaceInvitationRepository>();
         builder.Services.AddScoped<IChannelRepository, ChannelRepository>();
         builder.Services.AddScoped<IChannelMemberRepository, ChannelMemberRepository>();
         builder.Services.AddScoped<IMessageRepository, MessageRepository>();
@@ -42,6 +44,7 @@ public static class DependencyInjection
         builder.Services.AddScoped<IIdentityService, IdentityService>();
         builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+        builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         builder.Services.AddHttpClient<IMessageBroadcastService, HubBroadcastService>((serviceProvider, client) =>
         {

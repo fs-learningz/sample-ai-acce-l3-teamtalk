@@ -3,6 +3,7 @@ using TeamTalk.Application.Common.Errors;
 using TeamTalk.Application.Workspaces;
 using TeamTalk.Application.Workspaces.Contracts;
 using TeamTalk.Domain.Entities;
+using TeamTalk.Domain.Enums;
 using TeamTalk.Domain.Repositories;
 
 namespace TeamTalk.Application.Tests.Workspaces;
@@ -53,11 +54,26 @@ public class WorkspaceServiceTests
     {
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.IsMemberAsync(workspace.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
 
         var result = await _sut.GetByIdAsync(Guid.NewGuid(), workspace.Id, CancellationToken.None);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenUserIsMember_ReturnsCurrentUserRole()
+    {
+        var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
+        var userId = Guid.NewGuid();
+        var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, userId, WorkspaceRole.Admin, DateTime.UtcNow);
+        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, userId, Arg.Any<CancellationToken>()).Returns(member);
+
+        var result = await _sut.GetByIdAsync(userId, workspace.Id, CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.Equal(WorkspaceRole.Admin, result.Value.CurrentUserRole);
     }
 }

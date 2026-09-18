@@ -40,4 +40,20 @@ describe('WorkspaceShellComponent', () => {
 
     expect(fixture.componentInstance.workspace()?.name).toBe('Engineering');
   });
+
+  it('should load pending invitations when the current user is an admin', () => {
+    fixture.detectChanges();
+
+    httpMock.expectOne('/api/workspaces/w1').flush({
+      id: 'w1',
+      name: 'Engineering',
+      createdByUserId: 'u1',
+      createdAtUtc: new Date().toISOString(),
+      currentUserRole: 'Admin',
+    });
+    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
+    httpMock.expectOne('/api/workspaces/w1/invitations').flush([]);
+
+    expect(fixture.componentInstance.isAdmin()).toBe(true);
+  });
 });

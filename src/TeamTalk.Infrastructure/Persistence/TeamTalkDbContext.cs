@@ -17,6 +17,8 @@ public class TeamTalkDbContext : IdentityDbContext<ApplicationUser, IdentityRole
 
     public DbSet<WorkspaceMember> WorkspaceMembers { get; set; } = null!;
 
+    public DbSet<WorkspaceInvitation> WorkspaceInvitations { get; set; } = null!;
+
     public DbSet<Channel> Channels { get; set; } = null!;
 
     public DbSet<ChannelMember> ChannelMembers { get; set; } = null!;
