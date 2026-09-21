@@ -18,4 +18,8 @@ export class WorkspaceService {
   createAsync(request: CreateWorkspaceRequest): Observable<WorkspaceResponse> {
     return this.http.post<WorkspaceResponse>('/api/workspaces', request);
   }
+
+  deleteAsync(workspaceId: string): Observable<void> {
+    return this.http.delete<void>(`/api/workspaces/${workspaceId}`);
+  }
 }

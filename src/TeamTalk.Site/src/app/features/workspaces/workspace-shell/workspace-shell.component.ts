@@ -8,9 +8,12 @@ import { SelectModule } from 'primeng/select';
 import { ChannelResponse, ChannelType } from '../../../core/models/channel.model';
 import { WorkspaceResponse, WorkspaceRole } from '../../../core/models/workspace.model';
 import { WorkspaceInvitationResponse } from '../../../core/models/invitation.model';
+import { WorkspaceMemberResponse } from '../../../core/models/member.model';
 import { ChannelService } from '../../../core/channels/channel.service';
 import { WorkspaceService } from '../../../core/workspaces/workspace.service';
 import { InvitationService } from '../../../core/invitations/invitation.service';
+import { MemberService } from '../../../core/members/member.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 interface ChannelTypeOption {
   label: string;
@@ -24,7 +27,14 @@ interface WorkspaceRoleOption {
 
 @Component({
   selector: 'app-workspace-shell',
-  imports: [ReactiveFormsModule, RouterOutlet, ButtonModule, DialogModule, InputTextModule, SelectModule],
+  imports: [
+    ReactiveFormsModule,
+    RouterOutlet,
+    ButtonModule,
+    DialogModule,
+    InputTextModule,
+    SelectModule,
+  ],
   templateUrl: './workspace-shell.component.html',
 })
 export class WorkspaceShellComponent implements OnInit {
@@ -32,6 +42,8 @@ export class WorkspaceShellComponent implements OnInit {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly channelService = inject(ChannelService);
   private readonly invitationService = inject(InvitationService);
+  private readonly memberService = inject(MemberService);
+  private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -39,12 +51,19 @@ export class WorkspaceShellComponent implements OnInit {
   readonly workspace = signal<WorkspaceResponse | null>(null);
   readonly channels = signal<ChannelResponse[]>([]);
   readonly invitations = signal<WorkspaceInvitationResponse[]>([]);
+  readonly members = signal<WorkspaceMemberResponse[]>([]);
   readonly isCreateDialogVisible = signal(false);
   readonly isInviteDialogVisible = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly inviteErrorMessage = signal<string | null>(null);
 
   readonly isAdmin = computed(() => this.workspace()?.currentUserRole === 'Admin');
+  readonly currentUserId = computed(() => this.authService.currentUser()?.userId ?? null);
+  readonly isOwner = computed(() => {
+    const workspace = this.workspace();
+    const currentUserId = this.currentUserId();
+    return !!workspace && !!currentUserId && workspace.createdByUserId === currentUserId;
+  });
 
   readonly channelTypes: ChannelTypeOption[] = [
     { label: 'Public', value: 'Public' },
@@ -77,6 +96,53 @@ export class WorkspaceShellComponent implements OnInit {
       error: () => this.errorMessage.set('Could not load this workspace.'),
     });
     this.loadChannels();
+    this.loadMembers();
+  }
+
+  removeMember(member: WorkspaceMemberResponse): void {
+    if (!confirm(`Remove ${member.displayName} from this workspace?`)) {
+      return;
+    }
+
+    this.memberService.removeAsync(this.workspaceId, member.userId).subscribe({
+      next: () => this.loadMembers(),
+      error: () => this.errorMessage.set('Could not remove this member.'),
+    });
+  }
+
+  leaveWorkspace(): void {
+    if (!confirm('Are you sure you want to leave this workspace?')) {
+      return;
+    }
+
+    this.memberService.leaveAsync(this.workspaceId).subscribe({
+      next: () => void this.router.navigate(['/workspaces']),
+      error: () => this.errorMessage.set('Could not leave this workspace.'),
+    });
+  }
+
+  deleteWorkspace(): void {
+    const workspace = this.workspace();
+    if (
+      !workspace ||
+      !confirm(
+        `Delete "${workspace.name}"? This will permanently remove all its channels and messages.`,
+      )
+    ) {
+      return;
+    }
+
+    this.workspaceService.deleteAsync(this.workspaceId).subscribe({
+      next: () => void this.router.navigate(['/workspaces']),
+      error: () => this.errorMessage.set('Could not delete this workspace.'),
+    });
+  }
+
+  private loadMembers(): void {
+    this.memberService.getForWorkspaceAsync(this.workspaceId).subscribe({
+      next: (members) => this.members.set(members),
+      error: () => this.errorMessage.set('Could not load workspace members.'),
+    });
   }
 
   openInviteDialog(): void {
@@ -97,7 +163,9 @@ export class WorkspaceShellComponent implements OnInit {
         this.loadInvitations();
       },
       error: () => {
-        this.inviteErrorMessage.set('Could not send the invitation. The user may already be invited or a member.');
+        this.inviteErrorMessage.set(
+          'Could not send the invitation. The user may already be invited or a member.',
+        );
       },
     });
   }
@@ -111,7 +179,8 @@ export class WorkspaceShellComponent implements OnInit {
 
   private loadInvitations(): void {
     this.invitationService.getForWorkspaceAsync(this.workspaceId).subscribe({
-      next: (invitations) => this.invitations.set(invitations.filter((i) => i.status === 'Pending')),
+      next: (invitations) =>
+        this.invitations.set(invitations.filter((i) => i.status === 'Pending')),
       error: () => this.errorMessage.set('Could not load pending invitations.'),
     });
   }
