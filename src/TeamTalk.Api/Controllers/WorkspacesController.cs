@@ -39,4 +39,11 @@ public class WorkspacesController : ApiControllerBase
         var result = await _workspaceService.GetByIdAsync(CurrentUserId, workspaceId, cancellationToken);
         return result.ToActionResult(this);
     }
+
+    [HttpDelete("{workspaceId:guid}")]
+    public async Task<IActionResult> DeleteAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var result = await _workspaceService.DeleteAsync(CurrentUserId, workspaceId, cancellationToken);
+        return result.ToActionResult(this);
+    }
 }

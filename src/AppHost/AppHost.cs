@@ -3,7 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var jwtKey = builder.AddParameter("jwt-key", secret: true);
 var internalApiKey = builder.AddParameter("internal-api-key", secret: true);
 
-var sqlDb = builder.AddSqlServer("sql")
+var sqlDb = builder.AddSqlServer("sql", port: 1433)
     .WithDataVolume()
     .AddDatabase("teamtalkdb");
 
@@ -25,7 +25,7 @@ var api = builder.AddProject<Projects.TeamTalk_Api>("api")
 builder.AddViteApp("site", "../TeamTalk.Site", "start")
     .WithReference(api)
     .WithReference(hub)
-    .WithHttpEndpoint(env: "PORT")
+    .WithHttpEndpoint(port: 4200, env: "PORT")
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

@@ -9,4 +9,6 @@ public interface IWorkspaceMemberRepository
     Task<bool> IsMemberAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken);
 
     Task AddAsync(WorkspaceMember member, CancellationToken cancellationToken);
+
+    Task RemoveAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken);
 }

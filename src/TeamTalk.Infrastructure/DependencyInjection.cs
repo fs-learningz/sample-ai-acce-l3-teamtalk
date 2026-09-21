@@ -40,6 +40,7 @@ public static class DependencyInjection
         builder.Services.AddScoped<IChannelMemberRepository, ChannelMemberRepository>();
         builder.Services.AddScoped<IMessageRepository, MessageRepository>();
         builder.Services.AddScoped<IMessageQueryService, MessageQueryService>();
+        builder.Services.AddScoped<IWorkspaceMemberQueryService, WorkspaceMemberQueryService>();
 
         builder.Services.AddScoped<IIdentityService, IdentityService>();
         builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

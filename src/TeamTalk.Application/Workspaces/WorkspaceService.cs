@@ -58,6 +58,30 @@ public class WorkspaceService : IWorkspaceService
         return ToResponse(workspace, member.Role);
     }
 
+    public async Task<ErrorOr<Success>> DeleteAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        if (member is null)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        if (workspace.CreatedByUserId != userId)
+        {
+            return WorkspaceErrors.NotOwner;
+        }
+
+        await _workspaceRepository.DeleteAsync(workspaceId, cancellationToken);
+
+        return Result.Success;
+    }
+
     private static WorkspaceResponse ToResponse(Workspace workspace, WorkspaceRole? currentUserRole = null)
     {
         return new WorkspaceResponse
