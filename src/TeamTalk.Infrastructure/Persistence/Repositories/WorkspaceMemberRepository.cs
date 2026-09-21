@@ -30,4 +30,26 @@ public class WorkspaceMemberRepository : IWorkspaceMemberRepository
         await _dbContext.WorkspaceMembers.AddAsync(member, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task RemoveAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    {
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            var channelIds = _dbContext.Channels.Where(c => c.WorkspaceId == workspaceId).Select(c => c.Id);
+
+            await _dbContext.ChannelMembers
+                .Where(cm => cm.UserId == userId && channelIds.Contains(cm.ChannelId))
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await _dbContext.WorkspaceMembers
+                .Where(m => m.WorkspaceId == workspaceId && m.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+        });
+    }
 }

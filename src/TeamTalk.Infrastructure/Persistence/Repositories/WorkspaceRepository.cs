@@ -35,4 +35,25 @@ public class WorkspaceRepository : IWorkspaceRepository
         await _dbContext.Workspaces.AddAsync(workspace, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            var channelIds = _dbContext.Channels.Where(c => c.WorkspaceId == id).Select(c => c.Id);
+
+            await _dbContext.Messages.Where(m => channelIds.Contains(m.ChannelId)).ExecuteDeleteAsync(cancellationToken);
+            await _dbContext.ChannelMembers.Where(cm => channelIds.Contains(cm.ChannelId)).ExecuteDeleteAsync(cancellationToken);
+            await _dbContext.Channels.Where(c => c.WorkspaceId == id).ExecuteDeleteAsync(cancellationToken);
+            await _dbContext.WorkspaceInvitations.Where(i => i.WorkspaceId == id).ExecuteDeleteAsync(cancellationToken);
+            await _dbContext.WorkspaceMembers.Where(m => m.WorkspaceId == id).ExecuteDeleteAsync(cancellationToken);
+            await _dbContext.Workspaces.Where(w => w.Id == id).ExecuteDeleteAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+        });
+    }
 }

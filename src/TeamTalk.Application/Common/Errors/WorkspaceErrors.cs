@@ -18,4 +18,29 @@ public static class WorkspaceErrors
     {
         get { return Error.Forbidden("Workspace.NotAnAdmin", "Only workspace admins can perform this action."); }
     }
+
+    public static Error NotOwner
+    {
+        get { return Error.Forbidden("Workspace.NotOwner", "Only the workspace owner can delete this workspace."); }
+    }
+
+    public static Error MemberNotFound
+    {
+        get { return Error.NotFound("Workspace.MemberNotFound", "The specified member was not found in this workspace."); }
+    }
+
+    public static Error CannotRemoveSelf
+    {
+        get { return Error.Validation("Workspace.CannotRemoveSelf", "Use the leave workspace action to remove yourself."); }
+    }
+
+    public static Error CannotRemoveOwner
+    {
+        get { return Error.Validation("Workspace.CannotRemoveOwner", "The workspace owner cannot be removed."); }
+    }
+
+    public static Error OwnerCannotLeave
+    {
+        get { return Error.Validation("Workspace.OwnerCannotLeave", "The workspace owner cannot leave. Delete the workspace instead."); }
+    }
 }

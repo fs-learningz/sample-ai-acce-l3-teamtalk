@@ -9,4 +9,6 @@ public interface IWorkspaceRepository
     Task<IReadOnlyList<Workspace>> GetForUserAsync(Guid userId, CancellationToken cancellationToken);
 
     Task AddAsync(Workspace workspace, CancellationToken cancellationToken);
+
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
 }

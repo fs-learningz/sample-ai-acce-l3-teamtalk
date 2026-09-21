@@ -2,7 +2,12 @@
   <aside class="flex w-64 flex-col gap-4 border-r border-base-300 bg-base-200 p-4">
     <h2 class="text-lg font-semibold text-base-content">{{ workspace()?.name }}</h2>
 
-    <p-button label="New channel" icon="pi pi-plus" (onClick)="openCreateDialog()" styleClass="w-full" />
+    <p-button
+      label="New channel"
+      icon="pi pi-plus"
+      (onClick)="openCreateDialog()"
+      styleClass="w-full"
+    />
 
     @if (isAdmin()) {
       <p-button
@@ -39,7 +44,9 @@
       <div class="flex flex-col gap-1">
         <h3 class="text-xs font-semibold uppercase text-base-content/60">Pending invitations</h3>
         @for (invitation of invitations(); track invitation.id) {
-          <div class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content">
+          <div
+            class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
+          >
             <span class="truncate">{{ invitation.email }}</span>
             <button
               type="button"
@@ -53,6 +60,55 @@
         }
       </div>
     }
+
+    @if (members().length > 0) {
+      <div class="flex flex-col gap-1">
+        <h3 class="text-xs font-semibold uppercase text-base-content/60">Members</h3>
+        @for (member of members(); track member.id) {
+          <div
+            class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
+          >
+            <span class="truncate">{{ member.displayName }} · {{ member.role }}</span>
+            @if (
+              isAdmin() &&
+              member.userId !== workspace()?.createdByUserId &&
+              member.userId !== currentUserId()
+            ) {
+              <button
+                type="button"
+                class="text-base-content/60 hover:text-error"
+                title="Remove member"
+                (click)="removeMember(member)"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <div class="mt-auto flex flex-col gap-2">
+      @if (!isOwner() && workspace()) {
+        <p-button
+          label="Leave workspace"
+          icon="pi pi-sign-out"
+          severity="secondary"
+          (onClick)="leaveWorkspace()"
+          styleClass="w-full"
+        />
+      }
+
+      @if (isOwner()) {
+        <p-button
+          label="Delete workspace"
+          icon="pi pi-trash"
+          severity="danger"
+          (onClick)="deleteWorkspace()"
+          styleClass="w-full"
+        />
+      }
+    </div>
   </aside>
 
   <main class="flex-1 bg-base-100">
@@ -69,7 +125,12 @@
 
     <label class="flex flex-col gap-1 text-sm text-base-content">
       Type
-      <p-select [options]="channelTypes" optionLabel="label" optionValue="value" formControlName="type" />
+      <p-select
+        [options]="channelTypes"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="type"
+      />
     </label>
 
     <p-button type="submit" label="Create" [disabled]="createForm.invalid" />
@@ -89,7 +150,12 @@
 
     <label class="flex flex-col gap-1 text-sm text-base-content">
       Role
-      <p-select [options]="workspaceRoles" optionLabel="label" optionValue="value" formControlName="role" />
+      <p-select
+        [options]="workspaceRoles"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="role"
+      />
     </label>
 
     <p-button type="submit" label="Send invitation" [disabled]="inviteForm.invalid" />
