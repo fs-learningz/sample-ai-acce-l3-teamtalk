@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ConfirmationService } from 'primeng/api';
 import { vi } from 'vitest';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 
@@ -97,7 +98,6 @@ describe('WorkspaceShellComponent', () => {
   });
 
   it('should call the remove endpoint when removing a member is confirmed', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     fixture.detectChanges();
 
     httpMock
@@ -110,6 +110,12 @@ describe('WorkspaceShellComponent', () => {
       });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.accept?.();
+      return confirmationService;
+    });
 
     fixture.componentInstance.removeMember({
       id: 'm2',
@@ -129,7 +135,6 @@ describe('WorkspaceShellComponent', () => {
   });
 
   it('should not call the remove endpoint when removing a member is cancelled', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     fixture.detectChanges();
 
     httpMock
@@ -142,6 +147,12 @@ describe('WorkspaceShellComponent', () => {
       });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.reject?.();
+      return confirmationService;
+    });
 
     fixture.componentInstance.removeMember({
       id: 'm2',
@@ -157,7 +168,6 @@ describe('WorkspaceShellComponent', () => {
   });
 
   it('should call the leave endpoint when leaving is confirmed', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     fixture.detectChanges();
 
     httpMock
@@ -170,6 +180,12 @@ describe('WorkspaceShellComponent', () => {
       });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.accept?.();
+      return confirmationService;
+    });
 
     fixture.componentInstance.leaveWorkspace();
 
@@ -178,8 +194,7 @@ describe('WorkspaceShellComponent', () => {
     leaveReq.flush(null);
   });
 
-  it('should call the delete endpoint when deleting the workspace is confirmed', () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('should not call the leave endpoint when leaving is cancelled', () => {
     fixture.detectChanges();
 
     httpMock
@@ -193,10 +208,66 @@ describe('WorkspaceShellComponent', () => {
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
 
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.reject?.();
+      return confirmationService;
+    });
+
+    fixture.componentInstance.leaveWorkspace();
+
+    httpMock.expectNone('/api/workspaces/w1/members/leave');
+  });
+
+  it('should call the delete endpoint when deleting the workspace is confirmed', () => {
+    fixture.detectChanges();
+
+    httpMock
+      .expectOne('/api/workspaces/w1')
+      .flush({
+        id: 'w1',
+        name: 'Engineering',
+        createdByUserId: 'u1',
+        createdAtUtc: new Date().toISOString(),
+      });
+    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
+    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.accept?.();
+      return confirmationService;
+    });
+
     fixture.componentInstance.deleteWorkspace();
 
     const deleteReq = httpMock.expectOne('/api/workspaces/w1');
     expect(deleteReq.request.method).toBe('DELETE');
     deleteReq.flush(null);
+  });
+
+  it('should not call the delete endpoint when deleting the workspace is cancelled', () => {
+    fixture.detectChanges();
+
+    httpMock
+      .expectOne('/api/workspaces/w1')
+      .flush({
+        id: 'w1',
+        name: 'Engineering',
+        createdByUserId: 'u1',
+        createdAtUtc: new Date().toISOString(),
+      });
+    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
+    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.reject?.();
+      return confirmationService;
+    });
+
+    fixture.componentInstance.deleteWorkspace();
+
+    httpMock.expectNone('/api/workspaces/w1');
   });
 });

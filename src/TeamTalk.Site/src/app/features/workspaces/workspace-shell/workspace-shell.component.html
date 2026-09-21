@@ -50,7 +50,7 @@
             <span class="truncate">{{ invitation.email }}</span>
             <button
               type="button"
-              class="text-base-content/60 hover:text-error"
+              class="cursor-pointer text-base-content/60 hover:text-error"
               title="Revoke invitation"
               (click)="revokeInvitation(invitation)"
             >
@@ -76,7 +76,7 @@
             ) {
               <button
                 type="button"
-                class="text-base-content/60 hover:text-error"
+                class="cursor-pointer text-base-content/60 hover:text-error"
                 title="Remove member"
                 (click)="removeMember(member)"
               >
@@ -116,7 +116,15 @@
   </main>
 </div>
 
-<p-dialog header="Create channel" [(visible)]="isCreateDialogVisible" [modal]="true">
+<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />
+
+<p-dialog
+  header="Create channel"
+  [(visible)]="isCreateDialogVisible"
+  [modal]="true"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '768px': '90vw' }"
+>
   <form class="flex flex-col gap-4" [formGroup]="createForm" (ngSubmit)="onCreateSubmit()">
     <label class="flex flex-col gap-1 text-sm text-base-content">
       Channel name
@@ -137,7 +145,13 @@
   </form>
 </p-dialog>
 
-<p-dialog header="Invite member" [(visible)]="isInviteDialogVisible" [modal]="true">
+<p-dialog
+  header="Invite member"
+  [(visible)]="isInviteDialogVisible"
+  [modal]="true"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '768px': '90vw' }"
+>
   <form class="flex flex-col gap-4" [formGroup]="inviteForm" (ngSubmit)="onInviteSubmit()">
     @if (inviteErrorMessage()) {
       <p class="text-sm text-error">{{ inviteErrorMessage() }}</p>

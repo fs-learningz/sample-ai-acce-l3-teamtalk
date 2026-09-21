@@ -2,6 +2,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
+import { ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -31,10 +33,12 @@ interface WorkspaceRoleOption {
     ReactiveFormsModule,
     RouterOutlet,
     ButtonModule,
+    ConfirmDialogModule,
     DialogModule,
     InputTextModule,
     SelectModule,
   ],
+  providers: [ConfirmationService],
   templateUrl: './workspace-shell.component.html',
 })
 export class WorkspaceShellComponent implements OnInit {
@@ -44,6 +48,7 @@ export class WorkspaceShellComponent implements OnInit {
   private readonly invitationService = inject(InvitationService);
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
+  private readonly confirmationService = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -100,41 +105,58 @@ export class WorkspaceShellComponent implements OnInit {
   }
 
   removeMember(member: WorkspaceMemberResponse): void {
-    if (!confirm(`Remove ${member.displayName} from this workspace?`)) {
-      return;
-    }
-
-    this.memberService.removeAsync(this.workspaceId, member.userId).subscribe({
-      next: () => this.loadMembers(),
-      error: () => this.errorMessage.set('Could not remove this member.'),
+    this.confirmationService.confirm({
+      header: 'Remove member',
+      message: `Remove ${member.displayName} from this workspace?`,
+      acceptLabel: 'Remove',
+      rejectLabel: 'Cancel',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: () => {
+        this.memberService.removeAsync(this.workspaceId, member.userId).subscribe({
+          next: () => this.loadMembers(),
+          error: () => this.errorMessage.set('Could not remove this member.'),
+        });
+      },
     });
   }
 
   leaveWorkspace(): void {
-    if (!confirm('Are you sure you want to leave this workspace?')) {
-      return;
-    }
-
-    this.memberService.leaveAsync(this.workspaceId).subscribe({
-      next: () => void this.router.navigate(['/workspaces']),
-      error: () => this.errorMessage.set('Could not leave this workspace.'),
+    this.confirmationService.confirm({
+      header: 'Leave workspace',
+      message: 'Are you sure you want to leave this workspace?',
+      acceptLabel: 'Leave',
+      rejectLabel: 'Cancel',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: () => {
+        this.memberService.leaveAsync(this.workspaceId).subscribe({
+          next: () => void this.router.navigate(['/workspaces']),
+          error: () => this.errorMessage.set('Could not leave this workspace.'),
+        });
+      },
     });
   }
 
   deleteWorkspace(): void {
     const workspace = this.workspace();
-    if (
-      !workspace ||
-      !confirm(
-        `Delete "${workspace.name}"? This will permanently remove all its channels and messages.`,
-      )
-    ) {
+    if (!workspace) {
       return;
     }
 
-    this.workspaceService.deleteAsync(this.workspaceId).subscribe({
-      next: () => void this.router.navigate(['/workspaces']),
-      error: () => this.errorMessage.set('Could not delete this workspace.'),
+    this.confirmationService.confirm({
+      header: 'Delete workspace',
+      message: `Delete "${workspace.name}"? This will permanently remove all its channels and messages.`,
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: () => {
+        this.workspaceService.deleteAsync(this.workspaceId).subscribe({
+          next: () => void this.router.navigate(['/workspaces']),
+          error: () => this.errorMessage.set('Could not delete this workspace.'),
+        });
+      },
     });
   }
 

@@ -17,20 +17,50 @@
 
   <ul class="flex flex-col gap-2">
     @for (workspace of workspaces(); track workspace.id) {
-      <li>
+      <li
+        class="shadow-depth flex items-center justify-between rounded-box bg-base-100 p-4 hover:bg-base-200"
+      >
         <button
           type="button"
-          class="shadow-depth w-full rounded-box bg-base-100 p-4 text-left text-base-content hover:bg-base-200"
+          class="flex-1 text-left text-base-content"
           (click)="openWorkspace(workspace)"
         >
           {{ workspace.name }}
         </button>
+
+        @if (isOwner(workspace)) {
+          <button
+            type="button"
+            class="cursor-pointer text-base-content/60 hover:text-error"
+            title="Delete workspace"
+            (click)="deleteWorkspace(workspace)"
+          >
+            <i class="pi pi-trash"></i>
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="cursor-pointer text-base-content/60 hover:text-error"
+            title="Leave workspace"
+            (click)="leaveWorkspace(workspace)"
+          >
+            <i class="pi pi-sign-out"></i>
+          </button>
+        }
       </li>
     }
   </ul>
 </div>
 
-<p-dialog header="Create workspace" [(visible)]="isCreateDialogVisible" [modal]="true">
+<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />
+
+<p-dialog
+  header="Create workspace"
+  [(visible)]="isCreateDialogVisible"
+  [modal]="true"
+  [style]="{ width: '32rem' }"
+  [breakpoints]="{ '768px': '90vw' }"
+>
   <form class="flex flex-col gap-4" [formGroup]="createForm" (ngSubmit)="onCreateSubmit()">
     <label class="flex flex-col gap-1 text-sm text-base-content">
       Workspace name
