@@ -3,12 +3,12 @@ using TeamTalk.Infrastructure.Persistence.Repositories;
 
 namespace TeamTalk.Infrastructure.Tests.Persistence;
 
-[Collection(SqlServerCollection.Name)]
+[Collection(PostgresCollection.Name)]
 public class WorkspaceRepositoryTests
 {
-    private readonly SqlServerContainerFixture _fixture;
+    private readonly PostgresContainerFixture _fixture;
 
-    public WorkspaceRepositoryTests(SqlServerContainerFixture fixture)
+    public WorkspaceRepositoryTests(PostgresContainerFixture fixture)
     {
         _fixture = fixture;
     }

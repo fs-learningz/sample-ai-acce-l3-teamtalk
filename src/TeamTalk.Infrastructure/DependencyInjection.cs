@@ -17,7 +17,7 @@ public static class DependencyInjection
 {
     public static IHostApplicationBuilder AddInfrastructure(this IHostApplicationBuilder builder)
     {
-        builder.AddSqlServerDbContext<TeamTalkDbContext>("teamtalkdb");
+        builder.AddNpgsqlDbContext<TeamTalkDbContext>("teamtalkdb");
 
         builder.Services
             .AddIdentityCore<ApplicationUser>(options =>

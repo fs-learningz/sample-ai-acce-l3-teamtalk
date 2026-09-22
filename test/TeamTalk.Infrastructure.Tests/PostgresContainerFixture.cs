@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using TeamTalk.Infrastructure.Persistence;
-using Testcontainers.MsSql;
+using Testcontainers.PostgreSql;
 
 namespace TeamTalk.Infrastructure.Tests;
 
-public class SqlServerContainerFixture : IAsyncLifetime
+public class PostgresContainerFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16").Build();
 
     public async ValueTask InitializeAsync()
     {
@@ -24,7 +24,7 @@ public class SqlServerContainerFixture : IAsyncLifetime
     public TeamTalkDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<TeamTalkDbContext>()
-            .UseSqlServer(_container.GetConnectionString())
+            .UseNpgsql(_container.GetConnectionString())
             .Options;
 
         return new TeamTalkDbContext(options);
