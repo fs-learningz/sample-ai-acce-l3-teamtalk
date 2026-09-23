@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TeamTalk.Application.Common.Interfaces;
-using Testcontainers.MsSql;
+using Testcontainers.PostgreSql;
 
 namespace TeamTalk.Api.IntegrationTests.Infrastructure;
 
@@ -20,8 +20,8 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     // host ends up reading the other's (or nobody's) connection string.
     private static readonly SemaphoreSlim InitializationLock = new(1, 1);
 
-    private readonly MsSqlContainer _container =
-        new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
+    private readonly PostgreSqlContainer _container =
+        new PostgreSqlBuilder("postgres:16").Build();
 
     public async ValueTask InitializeAsync()
     {
@@ -30,7 +30,7 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         await InitializationLock.WaitAsync();
         try
         {
-            // Program.cs and Aspire's client integrations (e.g. AddSqlServerDbContext) read some
+            // Program.cs and Aspire's client integrations (e.g. AddNpgsqlDbContext) read some
             // configuration synchronously before WebApplicationFactory.ConfigureAppConfiguration's
             // callback runs, so those overrides arrive too late. Environment variables are picked up
             // by the default configuration providers the moment WebApplication.CreateBuilder runs,
