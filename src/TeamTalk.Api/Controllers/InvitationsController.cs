@@ -38,4 +38,16 @@ public class InvitationsController : ApiControllerBase
         var result = await _invitationService.DeclineAsync(CurrentUserId, CurrentUserEmail, invitationId, cancellationToken);
         return result.ToActionResult(this);
     }
+
+    [HttpGet("{invitationId:guid}/workspace-icon")]
+    public async Task<IActionResult> GetWorkspaceIconAsync(Guid invitationId, CancellationToken cancellationToken)
+    {
+        var result = await _invitationService.GetWorkspaceIconAsync(CurrentUserEmail, invitationId, cancellationToken);
+        if (result.IsError)
+        {
+            return result.ToActionResult(this);
+        }
+
+        return File(result.Value.Data, result.Value.ContentType);
+    }
 }

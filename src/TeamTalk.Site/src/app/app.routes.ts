@@ -1,20 +1,25 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { unsavedWorkspaceSettingsGuard } from './core/workspaces/unsaved-workspace-settings.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
-    loadComponent: () => import('./features/auth/login/login.component').then((m) => m.LoginComponent),
+    loadComponent: () =>
+      import('./features/auth/login/login.component').then((m) => m.LoginComponent),
   },
   {
     path: 'register',
-    loadComponent: () => import('./features/auth/register/register.component').then((m) => m.RegisterComponent),
+    loadComponent: () =>
+      import('./features/auth/register/register.component').then((m) => m.RegisterComponent),
   },
   {
     path: 'workspaces',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/workspaces/workspace-list/workspace-list.component').then((m) => m.WorkspaceListComponent),
+      import('./features/workspaces/workspace-list/workspace-list.component').then(
+        (m) => m.WorkspaceListComponent,
+      ),
   },
   {
     path: 'invitations',
@@ -35,7 +40,42 @@ export const routes: Routes = [
       {
         path: 'channels/:channelId',
         loadComponent: () =>
-          import('./features/channels/channel-view/channel-view.component').then((m) => m.ChannelViewComponent),
+          import('./features/channels/channel-view/channel-view.component').then(
+            (m) => m.ChannelViewComponent,
+          ),
+      },
+    ],
+  },
+  {
+    path: 'workspaces/:workspaceId/settings',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/workspaces/workspace-settings/workspace-settings.component').then(
+        (m) => m.WorkspaceSettingsComponent,
+      ),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'general' },
+      {
+        path: 'general',
+        loadComponent: () =>
+          import('./features/workspaces/workspace-settings/workspace-settings-general.component').then(
+            (m) => m.WorkspaceSettingsGeneralComponent,
+          ),
+        canDeactivate: [unsavedWorkspaceSettingsGuard],
+      },
+      {
+        path: 'members',
+        loadComponent: () =>
+          import('./features/workspaces/workspace-settings/workspace-settings-members.component').then(
+            (m) => m.WorkspaceSettingsMembersComponent,
+          ),
+      },
+      {
+        path: 'danger',
+        loadComponent: () =>
+          import('./features/workspaces/workspace-settings/workspace-settings-danger.component').then(
+            (m) => m.WorkspaceSettingsDangerComponent,
+          ),
       },
     ],
   },

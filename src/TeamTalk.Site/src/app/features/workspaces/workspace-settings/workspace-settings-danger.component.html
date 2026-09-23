@@ -1,0 +1,55 @@
+<div class="flex max-w-xl flex-col gap-6">
+  @if (errorMessage()) {
+    <p class="text-sm text-error">{{ errorMessage() }}</p>
+  }
+
+  @if (canLeave()) {
+    <section class="flex flex-col gap-2 rounded-field border border-base-300 p-4">
+      <h2 class="font-semibold text-base-content">Leave workspace</h2>
+      <p class="text-sm text-base-content/70">
+        You will lose access to this workspace's channels and messages.
+      </p>
+      <p-button
+        label="Leave workspace"
+        icon="pi pi-sign-out"
+        severity="secondary"
+        styleClass="w-fit"
+        [loading]="isLeaving()"
+        (onClick)="leaveWorkspace()"
+      />
+    </section>
+  }
+
+  @if (store.isAdmin()) {
+    <section class="flex flex-col gap-2 rounded-field border border-error p-4">
+      <h2 class="font-semibold text-error">Delete workspace</h2>
+      <p class="text-sm text-base-content/70">
+        This permanently deletes
+        <strong>{{ store.workspace()?.name }}</strong>
+        and all of its channels and messages. This cannot be undone.
+      </p>
+
+      <label class="flex flex-col gap-1 text-sm text-base-content">
+        Type <strong>{{ store.workspace()?.name }}</strong> to confirm
+        <input
+          pInputText
+          type="text"
+          [ngModel]="deleteConfirmationText()"
+          (ngModelChange)="deleteConfirmationText.set($event)"
+        />
+      </label>
+
+      <p-button
+        label="Delete workspace"
+        icon="pi pi-trash"
+        severity="danger"
+        styleClass="w-fit"
+        [disabled]="!canDelete() || isDeleting()"
+        [loading]="isDeleting()"
+        (onClick)="deleteWorkspace()"
+      />
+    </section>
+  }
+</div>
+
+<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />

@@ -6,6 +6,7 @@ export interface WorkspaceInvitationResponse {
   id: string;
   workspaceId: string;
   workspaceName: string;
+  workspaceHasIcon: boolean;
   email: string;
   role: WorkspaceRole;
   status: InvitationStatus;

@@ -1,5 +1,19 @@
 <div class="flex min-h-screen flex-col">
-  <header class="flex items-center justify-end border-b border-base-300 bg-base-100 px-4 py-2">
+  <header class="flex items-center justify-between border-b border-base-300 bg-base-100 px-4 py-2">
+    @if (workspace(); as ws) {
+      <button
+        type="button"
+        class="flex min-w-0 cursor-pointer items-center gap-2 rounded-field px-2 py-1 hover:bg-base-200"
+        [title]="ws.name"
+        (click)="openWorkspaceSettings()"
+      >
+        <app-workspace-icon [name]="ws.name" [imageUrl]="workspaceIconUrl()" />
+        <span class="truncate font-semibold text-base-content">{{ ws.name }}</span>
+      </button>
+    } @else {
+      <span></span>
+    }
+
     <app-user-menu />
   </header>
 
@@ -74,46 +88,10 @@
               class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
             >
               <span class="truncate">{{ member.displayName }} · {{ member.role }}</span>
-              @if (
-                isAdmin() &&
-                member.userId !== workspace()?.createdByUserId &&
-                member.userId !== currentUserId()
-              ) {
-                <button
-                  type="button"
-                  class="cursor-pointer text-base-content/60 hover:text-error"
-                  title="Remove member"
-                  (click)="removeMember(member)"
-                >
-                  <i class="pi pi-times"></i>
-                </button>
-              }
             </div>
           }
         </div>
       }
-
-      <div class="mt-auto flex flex-col gap-2">
-        @if (!isOwner() && workspace()) {
-          <p-button
-            label="Leave workspace"
-            icon="pi pi-sign-out"
-            severity="secondary"
-            (onClick)="leaveWorkspace()"
-            styleClass="w-full"
-          />
-        }
-
-        @if (isOwner()) {
-          <p-button
-            label="Delete workspace"
-            icon="pi pi-trash"
-            severity="danger"
-            (onClick)="deleteWorkspace()"
-            styleClass="w-full"
-          />
-        }
-      </div>
     </aside>
 
     <main class="flex-1 bg-base-100">
@@ -121,8 +99,6 @@
     </main>
   </div>
 </div>
-
-<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />
 
 <p-dialog
   header="Create channel"

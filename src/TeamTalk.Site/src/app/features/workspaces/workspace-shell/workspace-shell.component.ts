@@ -1,9 +1,7 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
-import { ConfirmationService } from 'primeng/api';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -15,8 +13,8 @@ import { ChannelService } from '../../../core/channels/channel.service';
 import { WorkspaceService } from '../../../core/workspaces/workspace.service';
 import { InvitationService } from '../../../core/invitations/invitation.service';
 import { MemberService } from '../../../core/members/member.service';
-import { AuthService } from '../../../core/auth/auth.service';
 import { UserMenuComponent } from '../../../shared/user-menu/user-menu.component';
+import { WorkspaceIconComponent } from '../../../shared/workspace-icon/workspace-icon.component';
 
 interface ChannelTypeOption {
   label: string;
@@ -34,28 +32,26 @@ interface WorkspaceRoleOption {
     ReactiveFormsModule,
     RouterOutlet,
     ButtonModule,
-    ConfirmDialogModule,
     DialogModule,
     InputTextModule,
     SelectModule,
     UserMenuComponent,
+    WorkspaceIconComponent,
   ],
-  providers: [ConfirmationService],
   templateUrl: './workspace-shell.component.html',
 })
-export class WorkspaceShellComponent implements OnInit {
+export class WorkspaceShellComponent implements OnInit, OnDestroy {
   private readonly formBuilder = inject(FormBuilder);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly channelService = inject(ChannelService);
   private readonly invitationService = inject(InvitationService);
   private readonly memberService = inject(MemberService);
-  private readonly authService = inject(AuthService);
-  private readonly confirmationService = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly workspaceId = this.route.snapshot.paramMap.get('workspaceId')!;
   readonly workspace = signal<WorkspaceResponse | null>(null);
+  readonly workspaceIconUrl = signal<string | null>(null);
   readonly channels = signal<ChannelResponse[]>([]);
   readonly invitations = signal<WorkspaceInvitationResponse[]>([]);
   readonly members = signal<WorkspaceMemberResponse[]>([]);
@@ -65,12 +61,6 @@ export class WorkspaceShellComponent implements OnInit {
   readonly inviteErrorMessage = signal<string | null>(null);
 
   readonly isAdmin = computed(() => this.workspace()?.currentUserRole === 'Admin');
-  readonly currentUserId = computed(() => this.authService.currentUser()?.userId ?? null);
-  readonly isOwner = computed(() => {
-    const workspace = this.workspace();
-    const currentUserId = this.currentUserId();
-    return !!workspace && !!currentUserId && workspace.createdByUserId === currentUserId;
-  });
 
   readonly channelTypes: ChannelTypeOption[] = [
     { label: 'Public', value: 'Public' },
@@ -99,6 +89,9 @@ export class WorkspaceShellComponent implements OnInit {
         if (workspace.currentUserRole === 'Admin') {
           this.loadInvitations();
         }
+        if (workspace.hasIcon) {
+          this.loadWorkspaceIcon();
+        }
       },
       error: () => this.errorMessage.set('Could not load this workspace.'),
     });
@@ -106,60 +99,29 @@ export class WorkspaceShellComponent implements OnInit {
     this.loadMembers();
   }
 
-  removeMember(member: WorkspaceMemberResponse): void {
-    this.confirmationService.confirm({
-      header: 'Remove member',
-      message: `Remove ${member.displayName} from this workspace?`,
-      acceptLabel: 'Remove',
-      rejectLabel: 'Cancel',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { severity: 'secondary', outlined: true },
-      accept: () => {
-        this.memberService.removeAsync(this.workspaceId, member.userId).subscribe({
-          next: () => this.loadMembers(),
-          error: () => this.errorMessage.set('Could not remove this member.'),
-        });
+  ngOnDestroy(): void {
+    this.revokeWorkspaceIconUrl();
+  }
+
+  openWorkspaceSettings(): void {
+    void this.router.navigate(['/workspaces', this.workspaceId, 'settings']);
+  }
+
+  private loadWorkspaceIcon(): void {
+    this.workspaceService.getIconAsync(this.workspaceId).subscribe({
+      next: (blob) => {
+        this.revokeWorkspaceIconUrl();
+        this.workspaceIconUrl.set(URL.createObjectURL(blob));
       },
+      error: () => this.workspaceIconUrl.set(null),
     });
   }
 
-  leaveWorkspace(): void {
-    this.confirmationService.confirm({
-      header: 'Leave workspace',
-      message: 'Are you sure you want to leave this workspace?',
-      acceptLabel: 'Leave',
-      rejectLabel: 'Cancel',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { severity: 'secondary', outlined: true },
-      accept: () => {
-        this.memberService.leaveAsync(this.workspaceId).subscribe({
-          next: () => void this.router.navigate(['/workspaces']),
-          error: () => this.errorMessage.set('Could not leave this workspace.'),
-        });
-      },
-    });
-  }
-
-  deleteWorkspace(): void {
-    const workspace = this.workspace();
-    if (!workspace) {
-      return;
+  private revokeWorkspaceIconUrl(): void {
+    const url = this.workspaceIconUrl();
+    if (url) {
+      URL.revokeObjectURL(url);
     }
-
-    this.confirmationService.confirm({
-      header: 'Delete workspace',
-      message: `Delete "${workspace.name}"? This will permanently remove all its channels and messages.`,
-      acceptLabel: 'Delete',
-      rejectLabel: 'Cancel',
-      acceptButtonProps: { severity: 'danger' },
-      rejectButtonProps: { severity: 'secondary', outlined: true },
-      accept: () => {
-        this.workspaceService.deleteAsync(this.workspaceId).subscribe({
-          next: () => void this.router.navigate(['/workspaces']),
-          error: () => this.errorMessage.set('Could not delete this workspace.'),
-        });
-      },
-    });
   }
 
   private loadMembers(): void {

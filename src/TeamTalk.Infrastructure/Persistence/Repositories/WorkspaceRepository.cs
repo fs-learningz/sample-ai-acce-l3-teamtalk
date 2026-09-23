@@ -36,6 +36,12 @@ public class WorkspaceRepository : IWorkspaceRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateAsync(Workspace workspace, CancellationToken cancellationToken)
+    {
+        _dbContext.Workspaces.Update(workspace);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var strategy = _dbContext.Database.CreateExecutionStrategy();

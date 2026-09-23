@@ -70,7 +70,7 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenCallerIsAdminButNotOwner_ReturnsForbidden()
+    public async Task DeleteAsync_WhenCallerIsAdminButNotCreator_Succeeds()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
@@ -90,11 +90,35 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         await InviteAndAcceptAsync(ownerClient, adminClient, workspace!.Id, admin.Email, cancellationToken, role: "Admin");
 
         var deleteResponse = await adminClient.DeleteAsync($"/api/workspaces/{workspace.Id}", cancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenCallerIsMemberNotAdmin_ReturnsForbidden()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var ownerClient = _factory.CreateClient();
+        var memberClient = _factory.CreateClient();
+
+        var owner = await RegisterAsync(ownerClient, cancellationToken);
+        var member = await RegisterAsync(memberClient, cancellationToken);
+
+        var createWorkspaceResponse = await ownerClient.PostAsJsonAsync(
+            "/api/workspaces",
+            new CreateWorkspaceRequestDto { Name = "Engineering" },
+            cancellationToken);
+        createWorkspaceResponse.EnsureSuccessStatusCode();
+        var workspace = await createWorkspaceResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
+        Assert.NotNull(workspace);
+
+        await InviteAndAcceptAsync(ownerClient, memberClient, workspace!.Id, member.Email, cancellationToken);
+
+        var deleteResponse = await memberClient.DeleteAsync($"/api/workspaces/{workspace.Id}", cancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
     }
 
     [Fact]
-    public async Task LeaveAsync_WhenCallerIsOwner_ReturnsBadRequest()
+    public async Task LeaveAsync_WhenCallerIsOnlyAdmin_ReturnsConflict()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
@@ -109,7 +133,46 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         Assert.NotNull(workspace);
 
         var leaveResponse = await ownerClient.PostAsync($"/api/workspaces/{workspace!.Id}/members/leave", null, cancellationToken);
-        Assert.Equal(HttpStatusCode.BadRequest, leaveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, leaveResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WhenTwoAdminsLeaveConcurrently_OnlyOneSucceeds()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var ownerClient = _factory.CreateClient();
+        var adminClient = _factory.CreateClient();
+
+        var owner = await RegisterAsync(ownerClient, cancellationToken);
+        var admin = await RegisterAsync(adminClient, cancellationToken);
+
+        var createWorkspaceResponse = await ownerClient.PostAsJsonAsync(
+            "/api/workspaces",
+            new CreateWorkspaceRequestDto { Name = "Engineering" },
+            cancellationToken);
+        createWorkspaceResponse.EnsureSuccessStatusCode();
+        var workspace = await createWorkspaceResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
+        Assert.NotNull(workspace);
+
+        await InviteAndAcceptAsync(ownerClient, adminClient, workspace!.Id, admin.Email, cancellationToken, role: "Admin");
+
+        var leaveTasks = new[]
+        {
+            ownerClient.PostAsync($"/api/workspaces/{workspace.Id}/members/leave", null, cancellationToken),
+            adminClient.PostAsync($"/api/workspaces/{workspace.Id}/members/leave", null, cancellationToken),
+        };
+        var leaveResponses = await Task.WhenAll(leaveTasks);
+
+        Assert.Single(leaveResponses, r => r.StatusCode == HttpStatusCode.NoContent);
+        Assert.Single(leaveResponses, r => r.StatusCode == HttpStatusCode.Conflict);
+
+        var membersResponse = await ownerClient.GetAsync($"/api/workspaces/{workspace.Id}/members", cancellationToken);
+        if (membersResponse.StatusCode == HttpStatusCode.OK)
+        {
+            var members = await membersResponse.Content.ReadFromJsonAsync<List<WorkspaceMemberDto>>(cancellationToken);
+            Assert.NotNull(members);
+            Assert.Single(members!);
+        }
     }
 
     private static async Task InviteAndAcceptAsync(

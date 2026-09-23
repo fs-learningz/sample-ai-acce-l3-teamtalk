@@ -11,5 +11,13 @@ public interface IWorkspaceService
 
     Task<ErrorOr<WorkspaceResponse>> GetByIdAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken);
 
+    Task<ErrorOr<WorkspaceResponse>> UpdateAsync(Guid userId, Guid workspaceId, UpdateWorkspaceRequest request, CancellationToken cancellationToken);
+
+    Task<ErrorOr<WorkspaceResponse>> UpdateIconAsync(Guid userId, Guid workspaceId, byte[] iconData, string contentType, CancellationToken cancellationToken);
+
+    Task<ErrorOr<WorkspaceResponse>> RemoveIconAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken);
+
+    Task<ErrorOr<WorkspaceIconResponse>> GetIconAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken);
+
     Task<ErrorOr<Success>> DeleteAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken);
 }

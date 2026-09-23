@@ -112,6 +112,82 @@ public class WorkspaceInvitationServiceTests
     }
 
     [Fact]
+    public async Task GetPendingForCurrentUserAsync_IncludesWorkspaceHasIcon()
+    {
+        var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
+        workspace.SetIcon([1, 2, 3], "image/png", DateTime.UtcNow);
+        var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspace.Id, "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
+
+        _invitationRepository.GetPendingForEmailAsync("invitee@example.com", Arg.Any<CancellationToken>())
+            .Returns(new List<WorkspaceInvitation> { invitation });
+        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
+
+        var result = await _sut.GetPendingForCurrentUserAsync(Guid.NewGuid(), "invitee@example.com", CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.Single(result.Value);
+        Assert.True(result.Value[0].WorkspaceHasIcon);
+    }
+
+    [Fact]
+    public async Task GetPendingForCurrentUserAsync_WhenWorkspaceIsMissing_ReturnsHasIconFalse()
+    {
+        var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
+
+        _invitationRepository.GetPendingForEmailAsync("invitee@example.com", Arg.Any<CancellationToken>())
+            .Returns(new List<WorkspaceInvitation> { invitation });
+        _workspaceRepository.GetByIdAsync(invitation.WorkspaceId, Arg.Any<CancellationToken>()).Returns((Workspace?)null);
+
+        var result = await _sut.GetPendingForCurrentUserAsync(Guid.NewGuid(), "invitee@example.com", CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.False(result.Value[0].WorkspaceHasIcon);
+        Assert.Equal("Unknown workspace", result.Value[0].WorkspaceName);
+    }
+
+    [Fact]
+    public async Task GetWorkspaceIconAsync_WhenEmailDoesNotMatch_ReturnsNotFound()
+    {
+        var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
+        _invitationRepository.GetByIdAsync(invitation.Id, Arg.Any<CancellationToken>()).Returns(invitation);
+
+        var result = await _sut.GetWorkspaceIconAsync("someoneelse@example.com", invitation.Id, CancellationToken.None);
+
+        Assert.True(result.IsError);
+        Assert.Equal(InvitationErrors.NotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task GetWorkspaceIconAsync_WhenWorkspaceHasNoIcon_ReturnsNotFound()
+    {
+        var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
+        var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspace.Id, "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
+        _invitationRepository.GetByIdAsync(invitation.Id, Arg.Any<CancellationToken>()).Returns(invitation);
+        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
+
+        var result = await _sut.GetWorkspaceIconAsync("invitee@example.com", invitation.Id, CancellationToken.None);
+
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.IconNotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task GetWorkspaceIconAsync_WhenValid_ReturnsIconBytes()
+    {
+        var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
+        workspace.SetIcon([9, 9, 9], "image/png", DateTime.UtcNow);
+        var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspace.Id, "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
+        _invitationRepository.GetByIdAsync(invitation.Id, Arg.Any<CancellationToken>()).Returns(invitation);
+        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
+
+        var result = await _sut.GetWorkspaceIconAsync("invitee@example.com", invitation.Id, CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.Equal("image/png", result.Value.ContentType);
+        Assert.Equal(new byte[] { 9, 9, 9 }, result.Value.Data);
+    }
+
+    [Fact]
     public async Task AcceptAsync_WhenEmailDoesNotMatch_ReturnsNotFound()
     {
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);

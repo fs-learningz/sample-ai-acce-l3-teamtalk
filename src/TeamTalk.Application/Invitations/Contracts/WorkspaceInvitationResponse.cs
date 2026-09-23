@@ -10,6 +10,8 @@ public class WorkspaceInvitationResponse
 
     public required string WorkspaceName { get; init; }
 
+    public bool WorkspaceHasIcon { get; init; }
+
     public required string Email { get; init; }
 
     public required WorkspaceRole Role { get; init; }

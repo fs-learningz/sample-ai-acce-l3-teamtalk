@@ -1,0 +1,118 @@
+@if (store.workspace(); as workspace) {
+  <div class="flex max-w-xl flex-col gap-6">
+    <form class="flex flex-col gap-4" [formGroup]="form" (ngSubmit)="save()">
+      <div class="flex items-center gap-4">
+        <app-workspace-icon [name]="workspace.name" [imageUrl]="displayIconUrl()" size="lg" />
+
+        @if (store.isAdmin()) {
+          <div class="flex flex-col gap-1">
+            <label
+              class="w-fit cursor-pointer rounded-field border border-base-300 px-3 py-1.5 text-sm text-base-content hover:bg-base-200"
+            >
+              Change icon
+              <input
+                type="file"
+                class="hidden"
+                accept="image/png,image/jpeg,image/svg+xml"
+                (change)="onIconSelected($event)"
+              />
+            </label>
+            @if (displayIconUrl()) {
+              <button
+                type="button"
+                class="cursor-pointer text-left text-xs text-base-content/60 hover:text-error"
+                (click)="removeIcon()"
+              >
+                Remove icon
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <label class="flex flex-col gap-1 text-sm text-base-content">
+        Workspace name
+        <input pInputText type="text" formControlName="name" [maxlength]="maxNameLength" />
+        <span class="text-xs text-base-content/60">
+          {{ form.controls.name.value.length }}/{{ maxNameLength }}
+        </span>
+      </label>
+
+      <label class="flex flex-col gap-1 text-sm text-base-content">
+        Description
+        <textarea
+          pTextarea
+          rows="3"
+          formControlName="description"
+          [maxlength]="maxDescriptionLength"
+        ></textarea>
+        <span class="text-xs text-base-content/60">
+          {{ form.controls.description.value.length }}/{{ maxDescriptionLength }}
+        </span>
+      </label>
+
+      @if (successMessage()) {
+        <p class="text-sm text-success">{{ successMessage() }}</p>
+      }
+      @if (errorMessage()) {
+        <p class="text-sm text-error">{{ errorMessage() }}</p>
+      }
+
+      @if (store.isAdmin()) {
+        <p-button
+          type="submit"
+          label="Save changes"
+          [disabled]="!hasUnsavedChanges() || form.invalid || isSaving()"
+          [loading]="isSaving()"
+        />
+      }
+    </form>
+
+    <hr class="border-base-300" />
+
+    <dl class="flex flex-col gap-4 text-sm">
+      <div class="flex flex-col gap-1">
+        <dt class="text-base-content/60">Created on</dt>
+        <dd class="text-base-content">{{ workspace.createdAtUtc | date: 'longDate' }}</dd>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <dt class="text-base-content/60">Created by</dt>
+        <dd class="flex items-center gap-2 text-base-content">
+          <app-user-avatar [name]="workspace.createdByDisplayName" />
+          {{ workspace.createdByDisplayName }}
+        </dd>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <dt class="text-base-content/60">Members</dt>
+        <dd class="text-base-content">
+          <button
+            type="button"
+            class="cursor-pointer text-primary hover:underline"
+            (click)="goToMembers()"
+          >
+            {{ workspace.memberCount }} {{ workspace.memberCount === 1 ? 'member' : 'members' }}
+          </button>
+        </dd>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <dt class="text-base-content/60">Workspace ID</dt>
+        <dd class="flex items-center gap-2 text-base-content">
+          <code class="truncate rounded-field bg-base-200 px-2 py-1 text-xs">{{
+            workspace.id
+          }}</code>
+          <button
+            type="button"
+            class="cursor-pointer text-base-content/60 hover:text-primary"
+            title="Copy workspace ID"
+            (click)="copyWorkspaceId()"
+          >
+            <i class="pi" [class.pi-copy]="!copiedId()" [class.pi-check]="copiedId()"></i>
+          </button>
+        </dd>
+      </div>
+    </dl>
+  </div>
+}

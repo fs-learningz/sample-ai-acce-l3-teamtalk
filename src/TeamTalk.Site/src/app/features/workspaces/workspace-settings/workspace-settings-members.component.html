@@ -1,0 +1,80 @@
+<div class="flex flex-col gap-4">
+  <input
+    pInputText
+    type="text"
+    placeholder="Search members by name or email"
+    class="max-w-sm"
+    [ngModel]="searchTerm()"
+    (ngModelChange)="searchTerm.set($event)"
+  />
+
+  @if (errorMessage()) {
+    <p class="text-sm text-error">{{ errorMessage() }}</p>
+  }
+
+  <table class="w-full text-left text-sm">
+    <thead>
+      <tr class="border-b border-base-300 text-base-content/60">
+        <th class="py-2 font-medium">Member</th>
+        <th class="py-2 font-medium">Email</th>
+        <th class="py-2 font-medium">Role</th>
+        <th class="py-2 font-medium">Joined</th>
+        @if (store.isAdmin()) {
+          <th class="py-2 font-medium"></th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (member of filteredMembers(); track member.id) {
+        <tr class="border-b border-base-300/60">
+          <td class="py-2">
+            <div class="flex items-center gap-2">
+              <app-user-avatar [name]="member.displayName" [email]="member.email" />
+              {{ member.displayName }}
+            </div>
+          </td>
+          <td class="py-2 text-base-content/80">{{ member.email }}</td>
+          <td class="py-2">
+            @if (store.isAdmin()) {
+              <span
+                [pTooltip]="
+                  isRoleDropdownDisabled(member)
+                    ? 'A workspace needs at least one admin'
+                    : undefined
+                "
+              >
+                <p-select
+                  [options]="roleOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  [ngModel]="member.role"
+                  [disabled]="isRoleDropdownDisabled(member)"
+                  (ngModelChange)="onRoleChange(member, $event)"
+                />
+              </span>
+            } @else {
+              {{ member.role }}
+            }
+          </td>
+          <td class="py-2 text-base-content/80">{{ member.joinedAtUtc | date: 'mediumDate' }}</td>
+          @if (store.isAdmin()) {
+            <td class="py-2 text-right">
+              @if (member.userId !== store.currentUserId()) {
+                <button
+                  type="button"
+                  class="cursor-pointer text-base-content/60 hover:text-error"
+                  title="Remove member"
+                  (click)="removeMember(member)"
+                >
+                  <i class="pi pi-times"></i>
+                </button>
+              }
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />

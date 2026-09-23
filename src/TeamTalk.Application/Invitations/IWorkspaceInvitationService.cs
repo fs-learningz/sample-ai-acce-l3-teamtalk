@@ -1,5 +1,6 @@
 using ErrorOr;
 using TeamTalk.Application.Invitations.Contracts;
+using TeamTalk.Application.Workspaces.Contracts;
 
 namespace TeamTalk.Application.Invitations;
 
@@ -26,4 +27,6 @@ public interface IWorkspaceInvitationService
     Task<ErrorOr<Success>> DeclineAsync(Guid userId, string userEmail, Guid invitationId, CancellationToken cancellationToken);
 
     Task<ErrorOr<Success>> RevokeAsync(Guid userId, Guid workspaceId, Guid invitationId, CancellationToken cancellationToken);
+
+    Task<ErrorOr<WorkspaceIconResponse>> GetWorkspaceIconAsync(string userEmail, Guid invitationId, CancellationToken cancellationToken);
 }

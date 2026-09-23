@@ -41,4 +41,28 @@ describe('InvitationListComponent', () => {
 
     expect(fixture.componentInstance.invitations().length).toBe(1);
   });
+
+  it('should fetch the workspace icon as a blob when the invitation has one', () => {
+    fixture.detectChanges();
+
+    httpMock.expectOne('/api/invitations').flush([
+      {
+        id: 'i1',
+        workspaceId: 'w1',
+        workspaceName: 'Engineering',
+        workspaceHasIcon: true,
+        email: 'user@example.com',
+        role: 'Member',
+        status: 'Pending',
+        invitedByUserId: 'u1',
+        createdAtUtc: new Date().toISOString(),
+      },
+    ]);
+
+    const iconReq = httpMock.expectOne('/api/invitations/i1/workspace-icon');
+    expect(iconReq.request.method).toBe('GET');
+    iconReq.flush(new Blob(['icon']));
+
+    expect(fixture.componentInstance.iconUrls()['i1']).toBeTruthy();
+  });
 });
