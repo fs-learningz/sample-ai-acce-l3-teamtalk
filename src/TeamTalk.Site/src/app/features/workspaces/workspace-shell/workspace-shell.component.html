@@ -1,119 +1,125 @@
-<div class="flex min-h-screen">
-  <aside class="flex w-64 flex-col gap-4 border-r border-base-300 bg-base-200 p-4">
-    <h2 class="text-lg font-semibold text-base-content">{{ workspace()?.name }}</h2>
+<div class="flex min-h-screen flex-col">
+  <header class="flex items-center justify-end border-b border-base-300 bg-base-100 px-4 py-2">
+    <app-user-menu />
+  </header>
 
-    <p-button
-      label="New channel"
-      icon="pi pi-plus"
-      (onClick)="openCreateDialog()"
-      styleClass="w-full"
-    />
+  <div class="flex flex-1">
+    <aside class="flex w-64 flex-col gap-4 border-r border-base-300 bg-base-200 p-4">
+      <h2 class="text-lg font-semibold text-base-content">{{ workspace()?.name }}</h2>
 
-    @if (isAdmin()) {
       <p-button
-        label="Invite member"
-        icon="pi pi-user-plus"
-        severity="secondary"
-        (onClick)="openInviteDialog()"
+        label="New channel"
+        icon="pi pi-plus"
+        (onClick)="openCreateDialog()"
         styleClass="w-full"
       />
-    }
 
-    @if (errorMessage()) {
-      <p class="text-sm text-error">{{ errorMessage() }}</p>
-    }
-
-    <nav class="flex flex-col gap-1">
-      @for (channel of channels(); track channel.id) {
-        <button
-          type="button"
-          class="rounded-field px-3 py-2 text-left text-base-content hover:bg-base-300"
-          (click)="openChannel(channel)"
-        >
-          @if (channel.type === 'Private') {
-            <i class="pi pi-lock mr-1 text-xs"></i>
-          } @else {
-            <span class="mr-1">#</span>
-          }
-          {{ channel.name }}
-        </button>
+      @if (isAdmin()) {
+        <p-button
+          label="Invite member"
+          icon="pi pi-user-plus"
+          severity="secondary"
+          (onClick)="openInviteDialog()"
+          styleClass="w-full"
+        />
       }
-    </nav>
 
-    @if (isAdmin() && invitations().length > 0) {
-      <div class="flex flex-col gap-1">
-        <h3 class="text-xs font-semibold uppercase text-base-content/60">Pending invitations</h3>
-        @for (invitation of invitations(); track invitation.id) {
-          <div
-            class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
+      @if (errorMessage()) {
+        <p class="text-sm text-error">{{ errorMessage() }}</p>
+      }
+
+      <nav class="flex flex-col gap-1">
+        @for (channel of channels(); track channel.id) {
+          <button
+            type="button"
+            class="rounded-field px-3 py-2 text-left text-base-content hover:bg-base-300"
+            (click)="openChannel(channel)"
           >
-            <span class="truncate">{{ invitation.email }}</span>
-            <button
-              type="button"
-              class="cursor-pointer text-base-content/60 hover:text-error"
-              title="Revoke invitation"
-              (click)="revokeInvitation(invitation)"
-            >
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
+            @if (channel.type === 'Private') {
+              <i class="pi pi-lock mr-1 text-xs"></i>
+            } @else {
+              <span class="mr-1">#</span>
+            }
+            {{ channel.name }}
+          </button>
         }
-      </div>
-    }
+      </nav>
 
-    @if (members().length > 0) {
-      <div class="flex flex-col gap-1">
-        <h3 class="text-xs font-semibold uppercase text-base-content/60">Members</h3>
-        @for (member of members(); track member.id) {
-          <div
-            class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
-          >
-            <span class="truncate">{{ member.displayName }} · {{ member.role }}</span>
-            @if (
-              isAdmin() &&
-              member.userId !== workspace()?.createdByUserId &&
-              member.userId !== currentUserId()
-            ) {
+      @if (isAdmin() && invitations().length > 0) {
+        <div class="flex flex-col gap-1">
+          <h3 class="text-xs font-semibold uppercase text-base-content/60">Pending invitations</h3>
+          @for (invitation of invitations(); track invitation.id) {
+            <div
+              class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
+            >
+              <span class="truncate">{{ invitation.email }}</span>
               <button
                 type="button"
                 class="cursor-pointer text-base-content/60 hover:text-error"
-                title="Remove member"
-                (click)="removeMember(member)"
+                title="Revoke invitation"
+                (click)="revokeInvitation(invitation)"
               >
                 <i class="pi pi-times"></i>
               </button>
-            }
-          </div>
+            </div>
+          }
+        </div>
+      }
+
+      @if (members().length > 0) {
+        <div class="flex flex-col gap-1">
+          <h3 class="text-xs font-semibold uppercase text-base-content/60">Members</h3>
+          @for (member of members(); track member.id) {
+            <div
+              class="flex items-center justify-between rounded-field px-3 py-2 text-sm text-base-content"
+            >
+              <span class="truncate">{{ member.displayName }} · {{ member.role }}</span>
+              @if (
+                isAdmin() &&
+                member.userId !== workspace()?.createdByUserId &&
+                member.userId !== currentUserId()
+              ) {
+                <button
+                  type="button"
+                  class="cursor-pointer text-base-content/60 hover:text-error"
+                  title="Remove member"
+                  (click)="removeMember(member)"
+                >
+                  <i class="pi pi-times"></i>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <div class="mt-auto flex flex-col gap-2">
+        @if (!isOwner() && workspace()) {
+          <p-button
+            label="Leave workspace"
+            icon="pi pi-sign-out"
+            severity="secondary"
+            (onClick)="leaveWorkspace()"
+            styleClass="w-full"
+          />
+        }
+
+        @if (isOwner()) {
+          <p-button
+            label="Delete workspace"
+            icon="pi pi-trash"
+            severity="danger"
+            (onClick)="deleteWorkspace()"
+            styleClass="w-full"
+          />
         }
       </div>
-    }
+    </aside>
 
-    <div class="mt-auto flex flex-col gap-2">
-      @if (!isOwner() && workspace()) {
-        <p-button
-          label="Leave workspace"
-          icon="pi pi-sign-out"
-          severity="secondary"
-          (onClick)="leaveWorkspace()"
-          styleClass="w-full"
-        />
-      }
-
-      @if (isOwner()) {
-        <p-button
-          label="Delete workspace"
-          icon="pi pi-trash"
-          severity="danger"
-          (onClick)="deleteWorkspace()"
-          styleClass="w-full"
-        />
-      }
-    </div>
-  </aside>
-
-  <main class="flex-1 bg-base-100">
-    <router-outlet />
-  </main>
+    <main class="flex-1 bg-base-100">
+      <router-outlet />
+    </main>
+  </div>
 </div>
 
 <p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />

@@ -23,6 +23,7 @@ describe('WorkspaceListComponent', () => {
           useValue: {
             currentUser: () =>
               currentUserId ? { userId: currentUserId, email: '', displayName: '' } : null,
+            isAuthenticated: () => currentUserId !== null,
           },
         },
       ],

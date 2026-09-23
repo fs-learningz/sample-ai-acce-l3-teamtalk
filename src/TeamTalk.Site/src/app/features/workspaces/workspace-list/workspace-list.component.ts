@@ -10,10 +10,18 @@ import { WorkspaceResponse } from '../../../core/models/workspace.model';
 import { WorkspaceService } from '../../../core/workspaces/workspace.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { MemberService } from '../../../core/members/member.service';
+import { UserMenuComponent } from '../../../shared/user-menu/user-menu.component';
 
 @Component({
   selector: 'app-workspace-list',
-  imports: [ReactiveFormsModule, ButtonModule, ConfirmDialogModule, DialogModule, InputTextModule],
+  imports: [
+    ReactiveFormsModule,
+    ButtonModule,
+    ConfirmDialogModule,
+    DialogModule,
+    InputTextModule,
+    UserMenuComponent,
+  ],
   providers: [ConfirmationService],
   templateUrl: './workspace-list.component.html',
 })
@@ -113,7 +121,8 @@ export class WorkspaceListComponent implements OnInit {
   private loadWorkspaces(): void {
     this.workspaceService.getForCurrentUserAsync().subscribe({
       next: (workspaces) => this.workspaces.set(workspaces),
-      error: () => this.errorMessage.set('Could not load your workspaces. Please refresh the page.'),
+      error: () =>
+        this.errorMessage.set('Could not load your workspaces. Please refresh the page.'),
     });
   }
 }

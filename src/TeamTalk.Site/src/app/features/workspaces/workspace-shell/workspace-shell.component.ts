@@ -16,6 +16,7 @@ import { WorkspaceService } from '../../../core/workspaces/workspace.service';
 import { InvitationService } from '../../../core/invitations/invitation.service';
 import { MemberService } from '../../../core/members/member.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { UserMenuComponent } from '../../../shared/user-menu/user-menu.component';
 
 interface ChannelTypeOption {
   label: string;
@@ -37,6 +38,7 @@ interface WorkspaceRoleOption {
     DialogModule,
     InputTextModule,
     SelectModule,
+    UserMenuComponent,
   ],
   providers: [ConfirmationService],
   templateUrl: './workspace-shell.component.html',
