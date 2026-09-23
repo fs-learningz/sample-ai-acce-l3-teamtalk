@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using TeamTalk.Application.Common.Errors;
 using TeamTalk.Application.Common.Interfaces;
 using TeamTalk.Application.Invitations.Contracts;
+using TeamTalk.Application.Workspaces.Contracts;
 using TeamTalk.Domain.Entities;
 using TeamTalk.Domain.Enums;
 using TeamTalk.Domain.Repositories;
@@ -93,7 +94,7 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
 
         await TrySendInvitationEmailAsync(invitation, workspace.Name, cancellationToken);
 
-        return ToResponse(invitation, workspace.Name);
+        return ToResponse(invitation, workspace);
     }
 
     public async Task<ErrorOr<IReadOnlyList<WorkspaceInvitationResponse>>> GetForWorkspaceAsync(
@@ -119,7 +120,7 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
         }
 
         var invitations = await _invitationRepository.GetForWorkspaceAsync(workspaceId, cancellationToken);
-        return invitations.Select(i => ToResponse(i, workspace.Name)).ToList();
+        return invitations.Select(i => ToResponse(i, workspace)).ToList();
     }
 
     public async Task<ErrorOr<IReadOnlyList<WorkspaceInvitationResponse>>> GetPendingForCurrentUserAsync(
@@ -130,21 +131,41 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
         var normalizedEmail = userEmail.Trim().ToLowerInvariant();
         var invitations = await _invitationRepository.GetPendingForEmailAsync(normalizedEmail, cancellationToken);
 
-        var workspaceNames = new Dictionary<Guid, string>();
+        var workspaceCache = new Dictionary<Guid, Workspace?>();
         var responses = new List<WorkspaceInvitationResponse>();
         foreach (var invitation in invitations)
         {
-            if (!workspaceNames.TryGetValue(invitation.WorkspaceId, out var workspaceName))
+            if (!workspaceCache.TryGetValue(invitation.WorkspaceId, out var workspace))
             {
-                var workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId, cancellationToken);
-                workspaceName = workspace?.Name ?? "Unknown workspace";
-                workspaceNames[invitation.WorkspaceId] = workspaceName;
+                workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId, cancellationToken);
+                workspaceCache[invitation.WorkspaceId] = workspace;
             }
 
-            responses.Add(ToResponse(invitation, workspaceName));
+            responses.Add(ToResponse(invitation, workspace));
         }
 
         return responses;
+    }
+
+    public async Task<ErrorOr<WorkspaceIconResponse>> GetWorkspaceIconAsync(
+        string userEmail,
+        Guid invitationId,
+        CancellationToken cancellationToken)
+    {
+        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId, cancellationToken);
+        if (invitationResult.IsError)
+        {
+            return invitationResult.Errors;
+        }
+
+        var invitation = invitationResult.Value;
+        var workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId, cancellationToken);
+        if (workspace?.IconData is null || workspace.IconContentType is null)
+        {
+            return WorkspaceErrors.IconNotFound;
+        }
+
+        return new WorkspaceIconResponse { Data = workspace.IconData, ContentType = workspace.IconContentType };
     }
 
     public async Task<ErrorOr<Success>> AcceptAsync(Guid userId, string userEmail, Guid invitationId, CancellationToken cancellationToken)
@@ -250,13 +271,14 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
         }
     }
 
-    private static WorkspaceInvitationResponse ToResponse(WorkspaceInvitation invitation, string workspaceName)
+    private static WorkspaceInvitationResponse ToResponse(WorkspaceInvitation invitation, Workspace? workspace)
     {
         return new WorkspaceInvitationResponse
         {
             Id = invitation.Id,
             WorkspaceId = invitation.WorkspaceId,
-            WorkspaceName = workspaceName,
+            WorkspaceName = workspace?.Name ?? "Unknown workspace",
+            WorkspaceHasIcon = workspace?.HasIcon ?? false,
             Email = invitation.Email,
             Role = invitation.Role,
             Status = invitation.Status,

@@ -26,42 +26,22 @@
 
   <ul class="flex flex-col gap-2">
     @for (workspace of workspaces(); track workspace.id) {
-      <li
-        class="shadow-depth flex items-center justify-between rounded-box bg-base-100 p-4 hover:bg-base-200"
-      >
+      <li class="shadow-depth rounded-box bg-base-100 hover:bg-base-200">
         <button
           type="button"
-          class="flex-1 text-left text-base-content"
+          class="flex w-full items-center gap-3 p-4 text-left text-base-content"
           (click)="openWorkspace(workspace)"
         >
+          <app-workspace-icon
+            [name]="workspace.name"
+            [imageUrl]="iconUrls()[workspace.id] ?? null"
+          />
           {{ workspace.name }}
         </button>
-
-        @if (isOwner(workspace)) {
-          <button
-            type="button"
-            class="cursor-pointer text-base-content/60 hover:text-error"
-            title="Delete workspace"
-            (click)="deleteWorkspace(workspace)"
-          >
-            <i class="pi pi-trash"></i>
-          </button>
-        } @else {
-          <button
-            type="button"
-            class="cursor-pointer text-base-content/60 hover:text-error"
-            title="Leave workspace"
-            (click)="leaveWorkspace(workspace)"
-          >
-            <i class="pi pi-sign-out"></i>
-          </button>
-        }
       </li>
     }
   </ul>
 </div>
-
-<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />
 
 <p-dialog
   header="Create workspace"

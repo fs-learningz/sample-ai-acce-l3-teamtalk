@@ -31,4 +31,9 @@ public class WorkspaceMember
     {
         return Role == WorkspaceRole.Admin;
     }
+
+    public void ChangeRole(WorkspaceRole role)
+    {
+        Role = role;
+    }
 }

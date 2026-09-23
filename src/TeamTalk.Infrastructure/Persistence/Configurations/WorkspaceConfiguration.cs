@@ -14,10 +14,19 @@ public class WorkspaceConfiguration : IEntityTypeConfiguration<Workspace>
         builder.Property(w => w.Id).ValueGeneratedNever();
 
         builder.Property(w => w.Name)
-            .HasMaxLength(100)
+            .HasMaxLength(Workspace.MaxNameLength)
             .IsRequired();
+
+        builder.Property(w => w.Description)
+            .HasMaxLength(Workspace.MaxDescriptionLength);
+
+        builder.Property(w => w.IconContentType)
+            .HasMaxLength(100);
 
         builder.Property(w => w.CreatedByUserId).IsRequired();
         builder.Property(w => w.CreatedAtUtc).IsRequired();
+        builder.Property(w => w.UpdatedAtUtc).IsRequired();
+
+        builder.Ignore(w => w.HasIcon);
     }
 }

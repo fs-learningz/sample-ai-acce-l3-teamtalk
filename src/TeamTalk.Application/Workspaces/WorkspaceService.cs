@@ -1,5 +1,7 @@
 using ErrorOr;
 using TeamTalk.Application.Common.Errors;
+using TeamTalk.Application.Common.Interfaces;
+using TeamTalk.Application.Common.Models;
 using TeamTalk.Application.Workspaces.Contracts;
 using TeamTalk.Domain.Entities;
 using TeamTalk.Domain.Enums;
@@ -9,13 +11,27 @@ namespace TeamTalk.Application.Workspaces;
 
 public class WorkspaceService : IWorkspaceService
 {
+    private static readonly HashSet<string> AllowedIconContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/png",
+        "image/jpeg",
+        "image/svg+xml",
+    };
+
+    private const long MaxIconSizeBytes = 2 * 1024 * 1024;
+
     private readonly IWorkspaceRepository _workspaceRepository;
     private readonly IWorkspaceMemberRepository _workspaceMemberRepository;
+    private readonly IWorkspaceQueryService _workspaceQueryService;
 
-    public WorkspaceService(IWorkspaceRepository workspaceRepository, IWorkspaceMemberRepository workspaceMemberRepository)
+    public WorkspaceService(
+        IWorkspaceRepository workspaceRepository,
+        IWorkspaceMemberRepository workspaceMemberRepository,
+        IWorkspaceQueryService workspaceQueryService)
     {
         _workspaceRepository = workspaceRepository;
         _workspaceMemberRepository = workspaceMemberRepository;
+        _workspaceQueryService = workspaceQueryService;
     }
 
     public async Task<ErrorOr<WorkspaceResponse>> CreateAsync(Guid userId, CreateWorkspaceRequest request, CancellationToken cancellationToken)
@@ -23,6 +39,11 @@ public class WorkspaceService : IWorkspaceService
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return Error.Validation("Workspace.NameRequired", "Workspace name is required.");
+        }
+
+        if (request.Name.Trim().Length > Workspace.MaxNameLength)
+        {
+            return Error.Validation("Workspace.NameTooLong", $"Workspace name cannot exceed {Workspace.MaxNameLength} characters.");
         }
 
         var nowUtc = DateTime.UtcNow;
@@ -55,7 +76,143 @@ public class WorkspaceService : IWorkspaceService
             return WorkspaceErrors.NotAMember;
         }
 
-        return ToResponse(workspace, member.Role);
+        var summary = await _workspaceQueryService.GetSummaryAsync(workspaceId, cancellationToken);
+
+        return ToResponse(workspace, member.Role, summary);
+    }
+
+    public async Task<ErrorOr<WorkspaceResponse>> UpdateAsync(
+        Guid userId,
+        Guid workspaceId,
+        UpdateWorkspaceRequest request,
+        CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        if (member is null)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        if (!member.IsAdmin())
+        {
+            return WorkspaceErrors.NotAnAdmin;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return Error.Validation("Workspace.NameRequired", "Workspace name is required.");
+        }
+
+        if (request.Name.Trim().Length > Workspace.MaxNameLength)
+        {
+            return Error.Validation("Workspace.NameTooLong", $"Workspace name cannot exceed {Workspace.MaxNameLength} characters.");
+        }
+
+        if (request.Description?.Trim().Length > Workspace.MaxDescriptionLength)
+        {
+            return Error.Validation("Workspace.DescriptionTooLong", $"Workspace description cannot exceed {Workspace.MaxDescriptionLength} characters.");
+        }
+
+        workspace.UpdateDetails(request.Name, request.Description, DateTime.UtcNow);
+        await _workspaceRepository.UpdateAsync(workspace, cancellationToken);
+
+        var summary = await _workspaceQueryService.GetSummaryAsync(workspaceId, cancellationToken);
+        return ToResponse(workspace, member.Role, summary);
+    }
+
+    public async Task<ErrorOr<WorkspaceResponse>> UpdateIconAsync(
+        Guid userId,
+        Guid workspaceId,
+        byte[] iconData,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        if (member is null)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        if (!member.IsAdmin())
+        {
+            return WorkspaceErrors.NotAnAdmin;
+        }
+
+        if (iconData.Length > MaxIconSizeBytes)
+        {
+            return WorkspaceErrors.IconTooLarge;
+        }
+
+        if (!AllowedIconContentTypes.Contains(contentType))
+        {
+            return WorkspaceErrors.UnsupportedIconFormat;
+        }
+
+        workspace.SetIcon(iconData, contentType, DateTime.UtcNow);
+        await _workspaceRepository.UpdateAsync(workspace, cancellationToken);
+
+        var summary = await _workspaceQueryService.GetSummaryAsync(workspaceId, cancellationToken);
+        return ToResponse(workspace, member.Role, summary);
+    }
+
+    public async Task<ErrorOr<WorkspaceResponse>> RemoveIconAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        if (member is null)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        if (!member.IsAdmin())
+        {
+            return WorkspaceErrors.NotAnAdmin;
+        }
+
+        workspace.RemoveIcon(DateTime.UtcNow);
+        await _workspaceRepository.UpdateAsync(workspace, cancellationToken);
+
+        var summary = await _workspaceQueryService.GetSummaryAsync(workspaceId, cancellationToken);
+        return ToResponse(workspace, member.Role, summary);
+    }
+
+    public async Task<ErrorOr<WorkspaceIconResponse>> GetIconAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var isMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId, cancellationToken);
+        if (!isMember)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        if (workspace.IconData is null || workspace.IconContentType is null)
+        {
+            return WorkspaceErrors.IconNotFound;
+        }
+
+        return new WorkspaceIconResponse { Data = workspace.IconData, ContentType = workspace.IconContentType };
     }
 
     public async Task<ErrorOr<Success>> DeleteAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
@@ -72,9 +229,9 @@ public class WorkspaceService : IWorkspaceService
             return WorkspaceErrors.NotAMember;
         }
 
-        if (workspace.CreatedByUserId != userId)
+        if (!member.IsAdmin())
         {
-            return WorkspaceErrors.NotOwner;
+            return WorkspaceErrors.NotAnAdmin;
         }
 
         await _workspaceRepository.DeleteAsync(workspaceId, cancellationToken);
@@ -82,14 +239,21 @@ public class WorkspaceService : IWorkspaceService
         return Result.Success;
     }
 
-    private static WorkspaceResponse ToResponse(Workspace workspace, WorkspaceRole? currentUserRole = null)
+    private static WorkspaceResponse ToResponse(
+        Workspace workspace,
+        WorkspaceRole? currentUserRole = null,
+        WorkspaceSummary? summary = null)
     {
         return new WorkspaceResponse
         {
             Id = workspace.Id,
             Name = workspace.Name,
+            Description = workspace.Description,
+            HasIcon = workspace.HasIcon,
             CreatedByUserId = workspace.CreatedByUserId,
+            CreatedByDisplayName = summary?.CreatedByDisplayName,
             CreatedAtUtc = workspace.CreatedAtUtc,
+            MemberCount = summary?.MemberCount,
             CurrentUserRole = currentUserRole,
         };
     }

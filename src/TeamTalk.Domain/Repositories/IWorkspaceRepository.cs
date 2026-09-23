@@ -10,5 +10,7 @@ public interface IWorkspaceRepository
 
     Task AddAsync(Workspace workspace, CancellationToken cancellationToken);
 
+    Task UpdateAsync(Workspace workspace, CancellationToken cancellationToken);
+
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
 }

@@ -71,11 +71,6 @@ public class WorkspaceMemberService : IWorkspaceMemberService
             return WorkspaceErrors.CannotRemoveSelf;
         }
 
-        if (workspace.CreatedByUserId == memberUserId)
-        {
-            return WorkspaceErrors.CannotRemoveOwner;
-        }
-
         var target = await _workspaceMemberRepository.GetAsync(workspaceId, memberUserId, cancellationToken);
         if (target is null)
         {
@@ -101,12 +96,50 @@ public class WorkspaceMemberService : IWorkspaceMemberService
             return WorkspaceErrors.NotAMember;
         }
 
-        if (workspace.CreatedByUserId == userId)
+        var left = await _workspaceMemberRepository.TryLeaveAsync(workspaceId, userId, cancellationToken);
+        if (!left)
         {
-            return WorkspaceErrors.OwnerCannotLeave;
+            return WorkspaceErrors.LastAdmin;
         }
 
-        await _workspaceMemberRepository.RemoveAsync(workspaceId, userId, cancellationToken);
+        return Result.Success;
+    }
+
+    public async Task<ErrorOr<Success>> ChangeRoleAsync(
+        Guid adminUserId,
+        Guid workspaceId,
+        Guid memberUserId,
+        ChangeMemberRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        if (workspace is null)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var admin = await _workspaceMemberRepository.GetAsync(workspaceId, adminUserId, cancellationToken);
+        if (admin is null)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        if (!admin.IsAdmin())
+        {
+            return WorkspaceErrors.NotAnAdmin;
+        }
+
+        var target = await _workspaceMemberRepository.GetAsync(workspaceId, memberUserId, cancellationToken);
+        if (target is null)
+        {
+            return WorkspaceErrors.MemberNotFound;
+        }
+
+        var changed = await _workspaceMemberRepository.TrySetRoleAsync(workspaceId, memberUserId, request.Role, cancellationToken);
+        if (!changed)
+        {
+            return WorkspaceErrors.LastAdmin;
+        }
 
         return Result.Success;
     }

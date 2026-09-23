@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TeamTalk.Api.Common;
 using TeamTalk.Application.Common.Interfaces;
 using TeamTalk.Application.Members;
+using TeamTalk.Application.Members.Contracts;
 
 namespace TeamTalk.Api.Controllers;
 
@@ -36,6 +37,17 @@ public class WorkspaceMembersController : ApiControllerBase
     public async Task<IActionResult> RemoveAsync(Guid workspaceId, Guid memberUserId, CancellationToken cancellationToken)
     {
         var result = await _memberService.RemoveAsync(CurrentUserId, workspaceId, memberUserId, cancellationToken);
+        return result.ToActionResult(this);
+    }
+
+    [HttpPatch("{memberUserId:guid}/role")]
+    public async Task<IActionResult> ChangeRoleAsync(
+        Guid workspaceId,
+        Guid memberUserId,
+        ChangeMemberRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _memberService.ChangeRoleAsync(CurrentUserId, workspaceId, memberUserId, request, cancellationToken);
         return result.ToActionResult(this);
     }
 }

@@ -41,6 +41,7 @@ public static class DependencyInjection
         builder.Services.AddScoped<IMessageRepository, MessageRepository>();
         builder.Services.AddScoped<IMessageQueryService, MessageQueryService>();
         builder.Services.AddScoped<IWorkspaceMemberQueryService, WorkspaceMemberQueryService>();
+        builder.Services.AddScoped<IWorkspaceQueryService, WorkspaceQueryService>();
 
         builder.Services.AddScoped<IIdentityService, IdentityService>();
         builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

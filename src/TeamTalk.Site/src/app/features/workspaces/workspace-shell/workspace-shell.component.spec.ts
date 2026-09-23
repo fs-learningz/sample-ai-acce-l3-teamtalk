@@ -2,13 +2,15 @@ import { Component } from '@angular/core';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { ConfirmationService } from 'primeng/api';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 
 @Component({ template: '' })
 class WorkspaceListStubComponent {}
+
+@Component({ template: '' })
+class WorkspaceSettingsStubComponent {}
 
 describe('WorkspaceShellComponent', () => {
   let fixture: ComponentFixture<WorkspaceShellComponent>;
@@ -20,7 +22,10 @@ describe('WorkspaceShellComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([{ path: 'workspaces', component: WorkspaceListStubComponent }]),
+        provideRouter([
+          { path: 'workspaces', component: WorkspaceListStubComponent },
+          { path: 'workspaces/:workspaceId/settings', component: WorkspaceSettingsStubComponent },
+        ]),
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap({ workspaceId: 'w1' }) } },
@@ -39,14 +44,13 @@ describe('WorkspaceShellComponent', () => {
   it('should load the workspace and its channels on init', () => {
     fixture.detectChanges();
 
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
+    httpMock.expectOne('/api/workspaces/w1').flush({
+      id: 'w1',
+      name: 'Engineering',
+      createdByUserId: 'u1',
+      createdAtUtc: new Date().toISOString(),
+      hasIcon: false,
+    });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
 
@@ -61,6 +65,7 @@ describe('WorkspaceShellComponent', () => {
       name: 'Engineering',
       createdByUserId: 'u1',
       createdAtUtc: new Date().toISOString(),
+      hasIcon: false,
       currentUserRole: 'Admin',
     });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
@@ -73,14 +78,13 @@ describe('WorkspaceShellComponent', () => {
   it('should load workspace members on init', () => {
     fixture.detectChanges();
 
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
+    httpMock.expectOne('/api/workspaces/w1').flush({
+      id: 'w1',
+      name: 'Engineering',
+      createdByUserId: 'u1',
+      createdAtUtc: new Date().toISOString(),
+      hasIcon: false,
+    });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([
       {
@@ -97,177 +101,44 @@ describe('WorkspaceShellComponent', () => {
     expect(fixture.componentInstance.members().length).toBe(1);
   });
 
-  it('should call the remove endpoint when removing a member is confirmed', () => {
+  it('should fetch the workspace icon as a blob when the workspace has one', () => {
     fixture.detectChanges();
 
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
+    httpMock.expectOne('/api/workspaces/w1').flush({
+      id: 'w1',
+      name: 'Engineering',
+      createdByUserId: 'u1',
+      createdAtUtc: new Date().toISOString(),
+      hasIcon: true,
+    });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
 
-    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
-    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
-      confirmation.accept?.();
-      return confirmationService;
-    });
+    const iconReq = httpMock.expectOne('/api/workspaces/w1/icon');
+    expect(iconReq.request.method).toBe('GET');
+    iconReq.flush(new Blob(['icon']));
 
-    fixture.componentInstance.removeMember({
-      id: 'm2',
-      workspaceId: 'w1',
-      userId: 'u2',
-      displayName: 'Member User',
-      email: 'member@example.com',
-      role: 'Member',
-      joinedAtUtc: new Date().toISOString(),
-    });
-
-    const removeReq = httpMock.expectOne('/api/workspaces/w1/members/u2');
-    expect(removeReq.request.method).toBe('DELETE');
-    removeReq.flush(null);
-
-    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+    expect(fixture.componentInstance.workspaceIconUrl()).toBeTruthy();
   });
 
-  it('should not call the remove endpoint when removing a member is cancelled', () => {
+  it('should navigate to workspace settings when the header is clicked', () => {
     fixture.detectChanges();
 
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
+    httpMock.expectOne('/api/workspaces/w1').flush({
+      id: 'w1',
+      name: 'Engineering',
+      createdByUserId: 'u1',
+      createdAtUtc: new Date().toISOString(),
+      hasIcon: false,
+    });
     httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
     httpMock.expectOne('/api/workspaces/w1/members').flush([]);
 
-    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
-    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
-      confirmation.reject?.();
-      return confirmationService;
-    });
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate');
 
-    fixture.componentInstance.removeMember({
-      id: 'm2',
-      workspaceId: 'w1',
-      userId: 'u2',
-      displayName: 'Member User',
-      email: 'member@example.com',
-      role: 'Member',
-      joinedAtUtc: new Date().toISOString(),
-    });
+    fixture.componentInstance.openWorkspaceSettings();
 
-    httpMock.expectNone('/api/workspaces/w1/members/u2');
-  });
-
-  it('should call the leave endpoint when leaving is confirmed', () => {
-    fixture.detectChanges();
-
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
-    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
-    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
-
-    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
-    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
-      confirmation.accept?.();
-      return confirmationService;
-    });
-
-    fixture.componentInstance.leaveWorkspace();
-
-    const leaveReq = httpMock.expectOne('/api/workspaces/w1/members/leave');
-    expect(leaveReq.request.method).toBe('POST');
-    leaveReq.flush(null);
-  });
-
-  it('should not call the leave endpoint when leaving is cancelled', () => {
-    fixture.detectChanges();
-
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
-    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
-    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
-
-    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
-    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
-      confirmation.reject?.();
-      return confirmationService;
-    });
-
-    fixture.componentInstance.leaveWorkspace();
-
-    httpMock.expectNone('/api/workspaces/w1/members/leave');
-  });
-
-  it('should call the delete endpoint when deleting the workspace is confirmed', () => {
-    fixture.detectChanges();
-
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
-    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
-    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
-
-    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
-    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
-      confirmation.accept?.();
-      return confirmationService;
-    });
-
-    fixture.componentInstance.deleteWorkspace();
-
-    const deleteReq = httpMock.expectOne('/api/workspaces/w1');
-    expect(deleteReq.request.method).toBe('DELETE');
-    deleteReq.flush(null);
-  });
-
-  it('should not call the delete endpoint when deleting the workspace is cancelled', () => {
-    fixture.detectChanges();
-
-    httpMock
-      .expectOne('/api/workspaces/w1')
-      .flush({
-        id: 'w1',
-        name: 'Engineering',
-        createdByUserId: 'u1',
-        createdAtUtc: new Date().toISOString(),
-      });
-    httpMock.expectOne('/api/workspaces/w1/channels').flush([]);
-    httpMock.expectOne('/api/workspaces/w1/members').flush([]);
-
-    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
-    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
-      confirmation.reject?.();
-      return confirmationService;
-    });
-
-    fixture.componentInstance.deleteWorkspace();
-
-    httpMock.expectNone('/api/workspaces/w1');
+    expect(navigateSpy).toHaveBeenCalledWith(['/workspaces', 'w1', 'settings']);
   });
 });

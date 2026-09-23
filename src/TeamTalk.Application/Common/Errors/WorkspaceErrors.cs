@@ -19,9 +19,24 @@ public static class WorkspaceErrors
         get { return Error.Forbidden("Workspace.NotAnAdmin", "Only workspace admins can perform this action."); }
     }
 
-    public static Error NotOwner
+    public static Error LastAdmin
     {
-        get { return Error.Forbidden("Workspace.NotOwner", "Only the workspace owner can delete this workspace."); }
+        get { return Error.Conflict("Workspace.LastAdmin", "A workspace needs at least one admin."); }
+    }
+
+    public static Error IconTooLarge
+    {
+        get { return Error.Validation("Workspace.IconTooLarge", "The workspace icon cannot exceed 2 MB."); }
+    }
+
+    public static Error UnsupportedIconFormat
+    {
+        get { return Error.Validation("Workspace.UnsupportedIconFormat", "The workspace icon must be a PNG, JPG, or SVG file."); }
+    }
+
+    public static Error IconNotFound
+    {
+        get { return Error.NotFound("Workspace.IconNotFound", "This workspace does not have an icon."); }
     }
 
     public static Error MemberNotFound
@@ -34,13 +49,4 @@ public static class WorkspaceErrors
         get { return Error.Validation("Workspace.CannotRemoveSelf", "Use the leave workspace action to remove yourself."); }
     }
 
-    public static Error CannotRemoveOwner
-    {
-        get { return Error.Validation("Workspace.CannotRemoveOwner", "The workspace owner cannot be removed."); }
-    }
-
-    public static Error OwnerCannotLeave
-    {
-        get { return Error.Validation("Workspace.OwnerCannotLeave", "The workspace owner cannot leave. Delete the workspace instead."); }
-    }
 }

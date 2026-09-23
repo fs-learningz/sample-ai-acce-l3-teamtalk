@@ -10,4 +10,6 @@ public interface IWorkspaceMemberService
     Task<ErrorOr<Success>> RemoveAsync(Guid adminUserId, Guid workspaceId, Guid memberUserId, CancellationToken cancellationToken);
 
     Task<ErrorOr<Success>> LeaveAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken);
+
+    Task<ErrorOr<Success>> ChangeRoleAsync(Guid adminUserId, Guid workspaceId, Guid memberUserId, ChangeMemberRoleRequest request, CancellationToken cancellationToken);
 }
