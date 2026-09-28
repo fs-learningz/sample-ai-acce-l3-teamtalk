@@ -8,6 +8,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_CONTAINER_RUNTIME": "docker",
         "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21011",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22053"
       }
@@ -19,6 +20,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_CONTAINER_RUNTIME": "docker",
         "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19242",
         "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20151"
       }
