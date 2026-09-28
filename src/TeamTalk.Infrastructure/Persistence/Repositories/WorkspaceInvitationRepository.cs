@@ -14,44 +14,43 @@ public class WorkspaceInvitationRepository : IWorkspaceInvitationRepository
         _dbContext = dbContext;
     }
 
-    public async Task<WorkspaceInvitation?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<WorkspaceInvitation?> GetByIdAsync(Guid id)
     {
-        return await _dbContext.WorkspaceInvitations.FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
+        return await _dbContext.WorkspaceInvitations.FirstOrDefaultAsync(i => i.Id == id);
     }
 
-    public async Task<IReadOnlyList<WorkspaceInvitation>> GetPendingForEmailAsync(string email, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<WorkspaceInvitation>> GetPendingForEmailAsync(string email)
     {
         return await _dbContext.WorkspaceInvitations
             .Where(i => i.Email == email && i.Status == InvitationStatus.Pending)
             .OrderByDescending(i => i.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 
-    public async Task<IReadOnlyList<WorkspaceInvitation>> GetForWorkspaceAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<WorkspaceInvitation>> GetForWorkspaceAsync(Guid workspaceId)
     {
         return await _dbContext.WorkspaceInvitations
             .Where(i => i.WorkspaceId == workspaceId)
             .OrderByDescending(i => i.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 
-    public async Task<WorkspaceInvitation?> GetPendingByWorkspaceAndEmailAsync(Guid workspaceId, string email, CancellationToken cancellationToken)
+    public async Task<WorkspaceInvitation?> GetPendingByWorkspaceAndEmailAsync(Guid workspaceId, string email)
     {
         return await _dbContext.WorkspaceInvitations
             .FirstOrDefaultAsync(
-                i => i.WorkspaceId == workspaceId && i.Email == email && i.Status == InvitationStatus.Pending,
-                cancellationToken);
+                i => i.WorkspaceId == workspaceId && i.Email == email && i.Status == InvitationStatus.Pending);
     }
 
-    public async Task AddAsync(WorkspaceInvitation invitation, CancellationToken cancellationToken)
+    public async Task AddAsync(WorkspaceInvitation invitation)
     {
-        await _dbContext.WorkspaceInvitations.AddAsync(invitation, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.WorkspaceInvitations.AddAsync(invitation);
+        await _dbContext.SaveChangesAsync();
     }
 
-    public async Task UpdateAsync(WorkspaceInvitation invitation, CancellationToken cancellationToken)
+    public async Task UpdateAsync(WorkspaceInvitation invitation)
     {
         _dbContext.WorkspaceInvitations.Update(invitation);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync();
     }
 }

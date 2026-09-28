@@ -14,18 +14,18 @@ public class ChannelRepository : IChannelRepository
         _dbContext = dbContext;
     }
 
-    public async Task<Channel?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Channel?> GetByIdAsync(Guid id)
     {
-        return await _dbContext.Channels.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        return await _dbContext.Channels.FirstOrDefaultAsync(c => c.Id == id);
     }
 
-    public async Task<bool> NameExistsInWorkspaceAsync(Guid workspaceId, string name, CancellationToken cancellationToken)
+    public async Task<bool> NameExistsInWorkspaceAsync(Guid workspaceId, string name)
     {
         return await _dbContext.Channels
-            .AnyAsync(c => c.WorkspaceId == workspaceId && c.Name == name, cancellationToken);
+            .AnyAsync(c => c.WorkspaceId == workspaceId && c.Name == name);
     }
 
-    public async Task<IReadOnlyList<Channel>> GetVisibleToUserAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Channel>> GetVisibleToUserAsync(Guid workspaceId, Guid userId)
     {
         var memberChannelIds = _dbContext.ChannelMembers
             .Where(m => m.UserId == userId)
@@ -35,12 +35,12 @@ public class ChannelRepository : IChannelRepository
             .Where(c => c.WorkspaceId == workspaceId
                 && (c.Type == ChannelType.Public || memberChannelIds.Contains(c.Id)))
             .OrderBy(c => c.Name)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 
-    public async Task AddAsync(Channel channel, CancellationToken cancellationToken)
+    public async Task AddAsync(Channel channel)
     {
-        await _dbContext.Channels.AddAsync(channel, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.Channels.AddAsync(channel);
+        await _dbContext.SaveChangesAsync();
     }
 }

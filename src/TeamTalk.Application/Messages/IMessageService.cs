@@ -8,27 +8,23 @@ public interface IMessageService
     Task<ErrorOr<MessageResponse>> SendAsync(
         Guid userId,
         Guid channelId,
-        SendMessageRequest request,
-        CancellationToken cancellationToken);
+        SendMessageRequest request);
 
     Task<ErrorOr<MessageResponse>> EditAsync(
         Guid userId,
         Guid channelId,
         Guid messageId,
-        EditMessageRequest request,
-        CancellationToken cancellationToken);
+        EditMessageRequest request);
 
     Task<ErrorOr<Success>> DeleteAsync(
         Guid userId,
         Guid workspaceId,
         Guid channelId,
-        Guid messageId,
-        CancellationToken cancellationToken);
+        Guid messageId);
 
     Task<ErrorOr<ChannelMessagesResponse>> GetHistoryAsync(
         Guid userId,
         Guid channelId,
         DateTime? beforeUtc,
-        int pageSize,
-        CancellationToken cancellationToken);
+        int pageSize);
 }

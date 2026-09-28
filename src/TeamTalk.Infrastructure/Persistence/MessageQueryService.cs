@@ -14,14 +14,14 @@ public class MessageQueryService : IMessageQueryService
         _dbContext = dbContext;
     }
 
-    public async Task<MessageResponse?> GetByIdAsync(Guid messageId, CancellationToken cancellationToken)
+    public async Task<MessageResponse?> GetByIdAsync(Guid messageId)
     {
         var result = await (
             from m in _dbContext.Messages
             join u in _dbContext.Users on m.SenderId equals u.Id
             where m.Id == messageId
             select new { Message = m, SenderDisplayName = u.DisplayName })
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         if (result is null)
         {
@@ -34,8 +34,7 @@ public class MessageQueryService : IMessageQueryService
     public async Task<ChannelMessagesResponse> GetChannelHistoryAsync(
         Guid channelId,
         DateTime? beforeUtc,
-        int pageSize,
-        CancellationToken cancellationToken)
+        int pageSize)
     {
         var query =
             from m in _dbContext.Messages
@@ -51,7 +50,7 @@ public class MessageQueryService : IMessageQueryService
         var page = await query
             .OrderByDescending(x => x.Message.SentAtUtc)
             .Take(pageSize + 1)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var hasMore = page.Count > pageSize;
         var items = page.Take(pageSize).Select(x => ToResponse(x.Message, x.SenderDisplayName)).ToList();

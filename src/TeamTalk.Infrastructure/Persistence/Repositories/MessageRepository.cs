@@ -13,16 +13,15 @@ public class MessageRepository : IMessageRepository
         _dbContext = dbContext;
     }
 
-    public async Task<Message?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Message?> GetByIdAsync(Guid id)
     {
-        return await _dbContext.Messages.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        return await _dbContext.Messages.FirstOrDefaultAsync(m => m.Id == id);
     }
 
     public async Task<IReadOnlyList<Message>> GetChannelHistoryAsync(
         Guid channelId,
         DateTime? beforeUtc,
-        int pageSize,
-        CancellationToken cancellationToken)
+        int pageSize)
     {
         var query = _dbContext.Messages.Where(m => m.ChannelId == channelId);
 
@@ -34,18 +33,18 @@ public class MessageRepository : IMessageRepository
         return await query
             .OrderByDescending(m => m.SentAtUtc)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 
-    public async Task AddAsync(Message message, CancellationToken cancellationToken)
+    public async Task AddAsync(Message message)
     {
-        await _dbContext.Messages.AddAsync(message, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.Messages.AddAsync(message);
+        await _dbContext.SaveChangesAsync();
     }
 
-    public async Task UpdateAsync(Message message, CancellationToken cancellationToken)
+    public async Task UpdateAsync(Message message)
     {
         _dbContext.Messages.Update(message);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync();
     }
 }

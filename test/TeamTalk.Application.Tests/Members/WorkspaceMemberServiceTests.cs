@@ -37,9 +37,9 @@ public class WorkspaceMemberServiceTests
     [Fact]
     public async Task GetForWorkspaceAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
     {
-        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Workspace?)null);
+        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
 
-        var result = await _sut.GetForWorkspaceAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+        var result = await _sut.GetForWorkspaceAsync(Guid.NewGuid(), Guid.NewGuid());
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
@@ -50,10 +50,10 @@ public class WorkspaceMemberServiceTests
     {
         var ownerId = Guid.NewGuid();
         var workspace = CreateWorkspace(ownerId);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
 
-        var result = await _sut.GetForWorkspaceAsync(Guid.NewGuid(), workspace.Id, CancellationToken.None);
+        var result = await _sut.GetForWorkspaceAsync(Guid.NewGuid(), workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
@@ -65,8 +65,8 @@ public class WorkspaceMemberServiceTests
         var ownerId = Guid.NewGuid();
         var workspace = CreateWorkspace(ownerId);
         var member = CreateMember(workspace.Id, ownerId, WorkspaceRole.Admin);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, ownerId, Arg.Any<CancellationToken>()).Returns(member);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, ownerId).Returns(member);
 
         var expected = new List<WorkspaceMemberResponse>
         {
@@ -81,9 +81,9 @@ public class WorkspaceMemberServiceTests
                 JoinedAtUtc = member.JoinedAtUtc,
             },
         };
-        _workspaceMemberQueryService.GetForWorkspaceAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(expected);
+        _workspaceMemberQueryService.GetForWorkspaceAsync(workspace.Id).Returns(expected);
 
-        var result = await _sut.GetForWorkspaceAsync(ownerId, workspace.Id, CancellationToken.None);
+        var result = await _sut.GetForWorkspaceAsync(ownerId, workspace.Id);
 
         Assert.False(result.IsError);
         Assert.Single(result.Value);
@@ -93,9 +93,9 @@ public class WorkspaceMemberServiceTests
     [Fact]
     public async Task RemoveAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
     {
-        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Workspace?)null);
+        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
 
-        var result = await _sut.RemoveAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+        var result = await _sut.RemoveAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
@@ -108,10 +108,10 @@ public class WorkspaceMemberServiceTests
         var workspace = CreateWorkspace(ownerId);
         var actorId = Guid.NewGuid();
         var actor = CreateMember(workspace.Id, actorId, WorkspaceRole.Member);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, actorId, Arg.Any<CancellationToken>()).Returns(actor);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, actorId).Returns(actor);
 
-        var result = await _sut.RemoveAsync(actorId, workspace.Id, Guid.NewGuid(), CancellationToken.None);
+        var result = await _sut.RemoveAsync(actorId, workspace.Id, Guid.NewGuid());
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
@@ -124,10 +124,10 @@ public class WorkspaceMemberServiceTests
         var workspace = CreateWorkspace(ownerId);
         var adminId = Guid.NewGuid();
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
-        var result = await _sut.RemoveAsync(adminId, workspace.Id, adminId, CancellationToken.None);
+        var result = await _sut.RemoveAsync(adminId, workspace.Id, adminId);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.CannotRemoveSelf, result.FirstError);
@@ -141,11 +141,11 @@ public class WorkspaceMemberServiceTests
         var adminId = Guid.NewGuid();
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
         var targetId = Guid.NewGuid();
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
-        _workspaceMemberRepository.GetAsync(workspace.Id, targetId, Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
+        _workspaceMemberRepository.GetAsync(workspace.Id, targetId).Returns((WorkspaceMember?)null);
 
-        var result = await _sut.RemoveAsync(adminId, workspace.Id, targetId, CancellationToken.None);
+        var result = await _sut.RemoveAsync(adminId, workspace.Id, targetId);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.MemberNotFound, result.FirstError);
@@ -160,14 +160,14 @@ public class WorkspaceMemberServiceTests
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
         var targetId = Guid.NewGuid();
         var target = CreateMember(workspace.Id, targetId);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
-        _workspaceMemberRepository.GetAsync(workspace.Id, targetId, Arg.Any<CancellationToken>()).Returns(target);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
+        _workspaceMemberRepository.GetAsync(workspace.Id, targetId).Returns(target);
 
-        var result = await _sut.RemoveAsync(adminId, workspace.Id, targetId, CancellationToken.None);
+        var result = await _sut.RemoveAsync(adminId, workspace.Id, targetId);
 
         Assert.False(result.IsError);
-        await _workspaceMemberRepository.Received(1).RemoveAsync(workspace.Id, targetId, Arg.Any<CancellationToken>());
+        await _workspaceMemberRepository.Received(1).RemoveAsync(workspace.Id, targetId);
     }
 
     [Fact]
@@ -179,14 +179,14 @@ public class WorkspaceMemberServiceTests
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
         var targetAdminId = Guid.NewGuid();
         var targetAdmin = CreateMember(workspace.Id, targetAdminId, WorkspaceRole.Admin);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
-        _workspaceMemberRepository.GetAsync(workspace.Id, targetAdminId, Arg.Any<CancellationToken>()).Returns(targetAdmin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
+        _workspaceMemberRepository.GetAsync(workspace.Id, targetAdminId).Returns(targetAdmin);
 
-        var result = await _sut.RemoveAsync(adminId, workspace.Id, targetAdminId, CancellationToken.None);
+        var result = await _sut.RemoveAsync(adminId, workspace.Id, targetAdminId);
 
         Assert.False(result.IsError);
-        await _workspaceMemberRepository.Received(1).RemoveAsync(workspace.Id, targetAdminId, Arg.Any<CancellationToken>());
+        await _workspaceMemberRepository.Received(1).RemoveAsync(workspace.Id, targetAdminId);
     }
 
     [Fact]
@@ -194,10 +194,10 @@ public class WorkspaceMemberServiceTests
     {
         var ownerId = Guid.NewGuid();
         var workspace = CreateWorkspace(ownerId);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
 
-        var result = await _sut.LeaveAsync(Guid.NewGuid(), workspace.Id, CancellationToken.None);
+        var result = await _sut.LeaveAsync(Guid.NewGuid(), workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
@@ -209,11 +209,11 @@ public class WorkspaceMemberServiceTests
         var ownerId = Guid.NewGuid();
         var workspace = CreateWorkspace(ownerId);
         var member = CreateMember(workspace.Id, ownerId, WorkspaceRole.Admin);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, ownerId, Arg.Any<CancellationToken>()).Returns(member);
-        _workspaceMemberRepository.TryLeaveAsync(workspace.Id, ownerId, Arg.Any<CancellationToken>()).Returns(false);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, ownerId).Returns(member);
+        _workspaceMemberRepository.TryLeaveAsync(workspace.Id, ownerId).Returns(false);
 
-        var result = await _sut.LeaveAsync(ownerId, workspace.Id, CancellationToken.None);
+        var result = await _sut.LeaveAsync(ownerId, workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.LastAdmin, result.FirstError);
@@ -226,14 +226,14 @@ public class WorkspaceMemberServiceTests
         var workspace = CreateWorkspace(ownerId);
         var userId = Guid.NewGuid();
         var member = CreateMember(workspace.Id, userId);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, userId, Arg.Any<CancellationToken>()).Returns(member);
-        _workspaceMemberRepository.TryLeaveAsync(workspace.Id, userId, Arg.Any<CancellationToken>()).Returns(true);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, userId).Returns(member);
+        _workspaceMemberRepository.TryLeaveAsync(workspace.Id, userId).Returns(true);
 
-        var result = await _sut.LeaveAsync(userId, workspace.Id, CancellationToken.None);
+        var result = await _sut.LeaveAsync(userId, workspace.Id);
 
         Assert.False(result.IsError);
-        await _workspaceMemberRepository.Received(1).TryLeaveAsync(workspace.Id, userId, Arg.Any<CancellationToken>());
+        await _workspaceMemberRepository.Received(1).TryLeaveAsync(workspace.Id, userId);
     }
 
     [Fact]
@@ -243,15 +243,14 @@ public class WorkspaceMemberServiceTests
         var workspace = CreateWorkspace(ownerId);
         var actorId = Guid.NewGuid();
         var actor = CreateMember(workspace.Id, actorId, WorkspaceRole.Member);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, actorId, Arg.Any<CancellationToken>()).Returns(actor);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, actorId).Returns(actor);
 
         var result = await _sut.ChangeRoleAsync(
             actorId,
             workspace.Id,
             Guid.NewGuid(),
-            new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin },
-            CancellationToken.None);
+            new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin });
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
@@ -265,16 +264,15 @@ public class WorkspaceMemberServiceTests
         var adminId = Guid.NewGuid();
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
         var targetId = Guid.NewGuid();
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
-        _workspaceMemberRepository.GetAsync(workspace.Id, targetId, Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
+        _workspaceMemberRepository.GetAsync(workspace.Id, targetId).Returns((WorkspaceMember?)null);
 
         var result = await _sut.ChangeRoleAsync(
             adminId,
             workspace.Id,
             targetId,
-            new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin },
-            CancellationToken.None);
+            new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin });
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.MemberNotFound, result.FirstError);
@@ -287,17 +285,16 @@ public class WorkspaceMemberServiceTests
         var workspace = CreateWorkspace(ownerId);
         var adminId = Guid.NewGuid();
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
-        _workspaceMemberRepository.TrySetRoleAsync(workspace.Id, adminId, WorkspaceRole.Member, Arg.Any<CancellationToken>())
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
+        _workspaceMemberRepository.TrySetRoleAsync(workspace.Id, adminId, WorkspaceRole.Member)
             .Returns(false);
 
         var result = await _sut.ChangeRoleAsync(
             adminId,
             workspace.Id,
             adminId,
-            new ChangeMemberRoleRequest { Role = WorkspaceRole.Member },
-            CancellationToken.None);
+            new ChangeMemberRoleRequest { Role = WorkspaceRole.Member });
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.LastAdmin, result.FirstError);
@@ -312,21 +309,20 @@ public class WorkspaceMemberServiceTests
         var admin = CreateMember(workspace.Id, adminId, WorkspaceRole.Admin);
         var targetId = Guid.NewGuid();
         var target = CreateMember(workspace.Id, targetId, WorkspaceRole.Member);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
-        _workspaceMemberRepository.GetAsync(workspace.Id, targetId, Arg.Any<CancellationToken>()).Returns(target);
-        _workspaceMemberRepository.TrySetRoleAsync(workspace.Id, targetId, WorkspaceRole.Admin, Arg.Any<CancellationToken>())
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
+        _workspaceMemberRepository.GetAsync(workspace.Id, targetId).Returns(target);
+        _workspaceMemberRepository.TrySetRoleAsync(workspace.Id, targetId, WorkspaceRole.Admin)
             .Returns(true);
 
         var result = await _sut.ChangeRoleAsync(
             adminId,
             workspace.Id,
             targetId,
-            new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin },
-            CancellationToken.None);
+            new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin });
 
         Assert.False(result.IsError);
         await _workspaceMemberRepository.Received(1)
-            .TrySetRoleAsync(workspace.Id, targetId, WorkspaceRole.Admin, Arg.Any<CancellationToken>());
+            .TrySetRoleAsync(workspace.Id, targetId, WorkspaceRole.Admin);
     }
 }

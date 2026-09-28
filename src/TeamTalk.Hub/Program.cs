@@ -7,6 +7,7 @@ using TeamTalk.Application.Common;
 using TeamTalk.Application.Common.Models;
 using TeamTalk.Hub.Hubs;
 using TeamTalk.Infrastructure;
+using TeamTalk.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,7 @@ builder.AddInfrastructure();
 builder.Services.AddSignalR();
 
 var jwtKey = builder.Configuration["Jwt:Key"];
+
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
     throw new InvalidOperationException("Jwt:Key configuration is missing.");
@@ -43,7 +45,8 @@ builder.Services
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/channel"))
+
+                if (string.IsNullOrEmpty(accessToken) is false && path.StartsWithSegments("/hubs/channel"))
                 {
                     context.Token = accessToken;
                 }
@@ -89,12 +92,14 @@ app.MapPost("/internal/broadcast/channels/{channelId:guid}", async (
     IHubContext<ChannelHub> hubContext) =>
 {
     var providedApiKey = request.Headers[RealtimeConstants.InternalApiKeyHeaderName].ToString();
+
     if (string.IsNullOrWhiteSpace(internalApiKey) || providedApiKey != internalApiKey)
     {
         return Results.Unauthorized();
     }
 
     await hubContext.Clients.Group(ChannelHub.GroupName(channelId)).SendAsync(body.EventName, body.Message);
+
     return Results.Ok();
 });
 

@@ -13,30 +13,33 @@ public class CurrentUserService : ICurrentUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public Guid? UserId
+    public Guid UserId
     {
         get
         {
             var claim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-            if (claim is null)
-            {
-                return null;
-            }
 
-            if (Guid.TryParse(claim.Value, out var userId))
+            if (claim is not null && Guid.TryParse(claim.Value, out var userId))
             {
                 return userId;
             }
 
-            return null;
+            throw new InvalidOperationException("User is not authenticated.");
         }
     }
 
-    public string? Email
+    public string Email
     {
         get
         {
-            return _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value;
+            var email = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (email is null)
+            {
+                throw new InvalidOperationException("User is not authenticated.");
+            }
+
+            return email;
         }
     }
 }

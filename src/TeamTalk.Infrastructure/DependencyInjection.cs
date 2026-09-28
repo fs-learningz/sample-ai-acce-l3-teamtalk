@@ -54,7 +54,8 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https+http://hub");
 
             var internalApiKey = configuration["Internal:ApiKey"];
-            if (!string.IsNullOrWhiteSpace(internalApiKey))
+
+            if (string.IsNullOrWhiteSpace(internalApiKey) is false)
             {
                 client.DefaultRequestHeaders.Add(RealtimeConstants.InternalApiKeyHeaderName, internalApiKey);
             }

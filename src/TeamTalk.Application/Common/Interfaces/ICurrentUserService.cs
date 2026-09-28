@@ -2,7 +2,7 @@ namespace TeamTalk.Application.Common.Interfaces;
 
 public interface ICurrentUserService
 {
-    Guid? UserId { get; }
+    Guid UserId { get; }
 
-    string? Email { get; }
+    string Email { get; }
 }

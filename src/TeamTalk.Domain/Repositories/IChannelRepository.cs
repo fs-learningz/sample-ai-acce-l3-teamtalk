@@ -4,11 +4,11 @@ namespace TeamTalk.Domain.Repositories;
 
 public interface IChannelRepository
 {
-    Task<Channel?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<Channel?> GetByIdAsync(Guid id);
 
-    Task<bool> NameExistsInWorkspaceAsync(Guid workspaceId, string name, CancellationToken cancellationToken);
+    Task<bool> NameExistsInWorkspaceAsync(Guid workspaceId, string name);
 
-    Task<IReadOnlyList<Channel>> GetVisibleToUserAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Channel>> GetVisibleToUserAsync(Guid workspaceId, Guid userId);
 
-    Task AddAsync(Channel channel, CancellationToken cancellationToken);
+    Task AddAsync(Channel channel);
 }

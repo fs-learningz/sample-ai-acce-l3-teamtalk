@@ -25,11 +25,11 @@ public class ChannelService : IChannelService
     public async Task<ErrorOr<ChannelResponse>> CreateAsync(
         Guid userId,
         Guid workspaceId,
-        CreateChannelRequest request,
-        CancellationToken cancellationToken)
+        CreateChannelRequest request)
     {
-        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId, cancellationToken);
-        if (!isWorkspaceMember)
+        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId);
+
+        if (isWorkspaceMember is false)
         {
             return WorkspaceErrors.NotAMember;
         }
@@ -39,7 +39,8 @@ public class ChannelService : IChannelService
             return Error.Validation("Channel.NameRequired", "Channel name is required.");
         }
 
-        var nameExists = await _channelRepository.NameExistsInWorkspaceAsync(workspaceId, request.Name, cancellationToken);
+        var nameExists = await _channelRepository.NameExistsInWorkspaceAsync(workspaceId, request.Name);
+
         if (nameExists)
         {
             return ChannelErrors.NameAlreadyExists;
@@ -47,61 +48,66 @@ public class ChannelService : IChannelService
 
         var nowUtc = DateTime.UtcNow;
         var channel = new Channel(Guid.CreateVersion7(), workspaceId, request.Name, request.Type, userId, nowUtc);
-        await _channelRepository.AddAsync(channel, cancellationToken);
+        await _channelRepository.AddAsync(channel);
 
         var member = new ChannelMember(Guid.CreateVersion7(), channel.Id, userId, nowUtc);
-        await _channelMemberRepository.AddAsync(member, cancellationToken);
+        await _channelMemberRepository.AddAsync(member);
 
         return ToResponse(channel);
     }
 
     public async Task<ErrorOr<IReadOnlyList<ChannelResponse>>> GetVisibleAsync(
         Guid userId,
-        Guid workspaceId,
-        CancellationToken cancellationToken)
+        Guid workspaceId)
     {
-        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId, cancellationToken);
-        if (!isWorkspaceMember)
+        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId);
+
+        if (isWorkspaceMember is false)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        var channels = await _channelRepository.GetVisibleToUserAsync(workspaceId, userId, cancellationToken);
+        var channels = await _channelRepository.GetVisibleToUserAsync(workspaceId, userId);
+
         return channels.Select(ToResponse).ToList();
     }
 
-    public async Task<ErrorOr<Success>> JoinAsync(Guid userId, Guid workspaceId, Guid channelId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> JoinAsync(Guid userId, Guid workspaceId, Guid channelId)
     {
-        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId, cancellationToken);
-        if (!isWorkspaceMember)
+        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId);
+
+        if (isWorkspaceMember is false)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        var channel = await _channelRepository.GetByIdAsync(channelId, cancellationToken);
+        var channel = await _channelRepository.GetByIdAsync(channelId);
+
         if (channel is null || channel.WorkspaceId != workspaceId)
         {
             return ChannelErrors.NotFound;
         }
 
-        if (!channel.IsPublic())
+        if (channel.IsPublic() is false)
         {
             return ChannelErrors.CannotJoinPrivateChannel;
         }
 
-        var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId, cancellationToken);
-        if (!isChannelMember)
+        var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId);
+
+        if (isChannelMember is false)
         {
             var member = new ChannelMember(Guid.CreateVersion7(), channelId, userId, DateTime.UtcNow);
-            await _channelMemberRepository.AddAsync(member, cancellationToken);
+            await _channelMemberRepository.AddAsync(member);
         }
 
         return Result.Success;
     }
 
-    public async Task<ErrorOr<Success>> CanUserAccessChannelAsync(Guid channelId, Guid userId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> CanUserAccessChannelAsync(Guid channelId, Guid userId)
     {
-        var channel = await _channelRepository.GetByIdAsync(channelId, cancellationToken);
+        var channel = await _channelRepository.GetByIdAsync(channelId);
+
         if (channel is null)
         {
             return ChannelErrors.NotFound;
@@ -109,8 +115,9 @@ public class ChannelService : IChannelService
 
         if (channel.IsPublic())
         {
-            var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(channel.WorkspaceId, userId, cancellationToken);
-            if (!isWorkspaceMember)
+            var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(channel.WorkspaceId, userId);
+
+            if (isWorkspaceMember is false)
             {
                 return WorkspaceErrors.NotAMember;
             }
@@ -118,8 +125,9 @@ public class ChannelService : IChannelService
             return Result.Success;
         }
 
-        var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId, cancellationToken);
-        if (!isChannelMember)
+        var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId);
+
+        if (isChannelMember is false)
         {
             return ChannelErrors.NotVisible;
         }
@@ -127,9 +135,10 @@ public class ChannelService : IChannelService
         return Result.Success;
     }
 
-    public async Task<ErrorOr<Success>> EnsureCanPostAsync(Guid channelId, Guid userId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> EnsureCanPostAsync(Guid channelId, Guid userId)
     {
-        var channel = await _channelRepository.GetByIdAsync(channelId, cancellationToken);
+        var channel = await _channelRepository.GetByIdAsync(channelId);
+
         if (channel is null)
         {
             return ChannelErrors.NotFound;
@@ -137,24 +146,27 @@ public class ChannelService : IChannelService
 
         if (channel.IsPublic())
         {
-            var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(channel.WorkspaceId, userId, cancellationToken);
-            if (!isWorkspaceMember)
+            var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(channel.WorkspaceId, userId);
+
+            if (isWorkspaceMember is false)
             {
                 return WorkspaceErrors.NotAMember;
             }
 
-            var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId, cancellationToken);
-            if (!isChannelMember)
+            var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId);
+
+            if (isChannelMember is false)
             {
                 var member = new ChannelMember(Guid.CreateVersion7(), channelId, userId, DateTime.UtcNow);
-                await _channelMemberRepository.AddAsync(member, cancellationToken);
+                await _channelMemberRepository.AddAsync(member);
             }
 
             return Result.Success;
         }
 
-        var isPrivateMember = await _channelMemberRepository.IsMemberAsync(channelId, userId, cancellationToken);
-        if (!isPrivateMember)
+        var isPrivateMember = await _channelMemberRepository.IsMemberAsync(channelId, userId);
+
+        if (isPrivateMember is false)
         {
             return ChannelErrors.NotVisible;
         }

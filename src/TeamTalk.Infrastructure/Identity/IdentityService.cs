@@ -18,10 +18,10 @@ public class IdentityService : IIdentityService
     public async Task<ErrorOr<IdentityUserResult>> RegisterAsync(
         string email,
         string displayName,
-        string password,
-        CancellationToken cancellationToken)
+        string password)
     {
         var existingUser = await _userManager.FindByEmailAsync(email);
+
         if (existingUser is not null)
         {
             return AuthErrors.EmailAlreadyExists;
@@ -36,9 +36,11 @@ public class IdentityService : IIdentityService
         };
 
         var createResult = await _userManager.CreateAsync(user, password);
-        if (!createResult.Succeeded)
+
+        if (createResult.Succeeded is false)
         {
             var description = string.Join(" ", createResult.Errors.Select(e => e.Description));
+
             return AuthErrors.RegistrationFailed(description);
         }
 
@@ -47,17 +49,18 @@ public class IdentityService : IIdentityService
 
     public async Task<ErrorOr<IdentityUserResult>> ValidateCredentialsAsync(
         string email,
-        string password,
-        CancellationToken cancellationToken)
+        string password)
     {
         var user = await _userManager.FindByEmailAsync(email);
+
         if (user is null)
         {
             return AuthErrors.InvalidCredentials;
         }
 
         var passwordValid = await _userManager.CheckPasswordAsync(user, password);
-        if (!passwordValid)
+
+        if (passwordValid is false)
         {
             return AuthErrors.InvalidCredentials;
         }
@@ -65,9 +68,10 @@ public class IdentityService : IIdentityService
         return ToResult(user);
     }
 
-    public async Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken cancellationToken)
+    public async Task<Guid?> FindUserIdByEmailAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);
+
         return user?.Id;
     }
 

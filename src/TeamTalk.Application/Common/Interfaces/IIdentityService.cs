@@ -8,13 +8,11 @@ public interface IIdentityService
     Task<ErrorOr<IdentityUserResult>> RegisterAsync(
         string email,
         string displayName,
-        string password,
-        CancellationToken cancellationToken);
+        string password);
 
     Task<ErrorOr<IdentityUserResult>> ValidateCredentialsAsync(
         string email,
-        string password,
-        CancellationToken cancellationToken);
+        string password);
 
-    Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken cancellationToken);
+    Task<Guid?> FindUserIdByEmailAsync(string email);
 }

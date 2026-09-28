@@ -1,3 +1,5 @@
+using TeamTalk.AppHost;
+
 ContainerRuntimePreflight.EnsureRuntimeIsRunning();
 
 var builder = DistributedApplication.CreateBuilder(args);

@@ -7,86 +7,145 @@ using TeamTalk.Application.Workspaces.Contracts;
 
 namespace TeamTalk.Api.Controllers;
 
+[ApiController]
 [Authorize]
 [Route("api/workspaces")]
-public class WorkspacesController : ApiControllerBase
+public class WorkspacesController : ControllerBase
 {
     private readonly IWorkspaceService _workspaceService;
+    private readonly ICurrentUserService _currentUserService;
 
     public WorkspacesController(IWorkspaceService workspaceService, ICurrentUserService currentUserService)
-        : base(currentUserService)
     {
         _workspaceService = workspaceService;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateAsync(CreateWorkspaceRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateAsync(CreateWorkspaceRequest request)
     {
-        var result = await _workspaceService.CreateAsync(CurrentUserId, request, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _workspaceService.CreateAsync(_currentUserService.UserId, request);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetForCurrentUserAsync(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetForCurrentUserAsync()
     {
-        var result = await _workspaceService.GetForUserAsync(CurrentUserId, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _workspaceService.GetForUserAsync(_currentUserService.UserId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{workspaceId:guid}")]
-    public async Task<IActionResult> GetByIdAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetByIdAsync(Guid workspaceId)
     {
-        var result = await _workspaceService.GetByIdAsync(CurrentUserId, workspaceId, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _workspaceService.GetByIdAsync(_currentUserService.UserId, workspaceId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPut("{workspaceId:guid}")]
-    public async Task<IActionResult> UpdateAsync(Guid workspaceId, UpdateWorkspaceRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateAsync(Guid workspaceId, UpdateWorkspaceRequest request)
     {
-        var result = await _workspaceService.UpdateAsync(CurrentUserId, workspaceId, request, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _workspaceService.UpdateAsync(_currentUserService.UserId, workspaceId, request);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPut("{workspaceId:guid}/icon")]
     [RequestSizeLimit(3 * 1024 * 1024)]
-    public async Task<IActionResult> UpdateIconAsync(Guid workspaceId, IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateIconAsync(Guid workspaceId, IFormFile file)
     {
         await using var stream = new MemoryStream();
-        await file.CopyToAsync(stream, cancellationToken);
+        await file.CopyToAsync(stream);
 
         var result = await _workspaceService.UpdateIconAsync(
-            CurrentUserId,
+            _currentUserService.UserId,
             workspaceId,
             stream.ToArray(),
-            file.ContentType,
-            cancellationToken);
+            file.ContentType);
 
-        return result.ToActionResult(this);
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpDelete("{workspaceId:guid}/icon")]
-    public async Task<IActionResult> RemoveIconAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IActionResult> RemoveIconAsync(Guid workspaceId)
     {
-        var result = await _workspaceService.RemoveIconAsync(CurrentUserId, workspaceId, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _workspaceService.RemoveIconAsync(_currentUserService.UserId, workspaceId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{workspaceId:guid}/icon")]
-    public async Task<IActionResult> GetIconAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetIconAsync(Guid workspaceId)
     {
-        var result = await _workspaceService.GetIconAsync(CurrentUserId, workspaceId, cancellationToken);
+        var result = await _workspaceService.GetIconAsync(_currentUserService.UserId, workspaceId);
+
         if (result.IsError)
         {
-            return result.ToActionResult(this);
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
         }
 
         return File(result.Value.Data, result.Value.ContentType);
     }
 
     [HttpDelete("{workspaceId:guid}")]
-    public async Task<IActionResult> DeleteAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteAsync(Guid workspaceId)
     {
-        var result = await _workspaceService.DeleteAsync(CurrentUserId, workspaceId, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _workspaceService.DeleteAsync(_currentUserService.UserId, workspaceId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return NoContent();
     }
 }

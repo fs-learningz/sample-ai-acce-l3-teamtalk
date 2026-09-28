@@ -13,7 +13,7 @@ public class WorkspaceMemberQueryService : IWorkspaceMemberQueryService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<WorkspaceMemberResponse>> GetForWorkspaceAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<WorkspaceMemberResponse>> GetForWorkspaceAsync(Guid workspaceId)
     {
         return await (
             from m in _dbContext.WorkspaceMembers
@@ -30,6 +30,6 @@ public class WorkspaceMemberQueryService : IWorkspaceMemberQueryService
                 Role = m.Role,
                 JoinedAtUtc = m.JoinedAtUtc,
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 }

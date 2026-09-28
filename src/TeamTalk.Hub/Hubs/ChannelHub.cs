@@ -18,7 +18,8 @@ public class ChannelHub : Microsoft.AspNetCore.SignalR.Hub
     public async Task JoinChannelAsync(Guid channelId)
     {
         var userId = GetUserId();
-        var result = await _channelService.CanUserAccessChannelAsync(channelId, userId, Context.ConnectionAborted);
+        var result = await _channelService.CanUserAccessChannelAsync(channelId, userId);
+
         if (result.IsError)
         {
             throw new HubException(result.FirstError.Description);
@@ -40,6 +41,7 @@ public class ChannelHub : Microsoft.AspNetCore.SignalR.Hub
     private Guid GetUserId()
     {
         var claim = Context.User?.FindFirst(ClaimTypes.NameIdentifier);
+
         if (claim is null)
         {
             throw new HubException("Missing user identity.");

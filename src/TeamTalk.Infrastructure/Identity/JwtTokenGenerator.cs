@@ -19,6 +19,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
     public string GenerateToken(Guid userId, string email, string displayName)
     {
         var key = _configuration["Jwt:Key"];
+
         if (string.IsNullOrWhiteSpace(key))
         {
             throw new InvalidOperationException("Jwt:Key configuration is missing.");

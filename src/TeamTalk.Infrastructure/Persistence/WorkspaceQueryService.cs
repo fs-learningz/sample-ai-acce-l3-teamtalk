@@ -13,12 +13,12 @@ public class WorkspaceQueryService : IWorkspaceQueryService
         _dbContext = dbContext;
     }
 
-    public async Task<WorkspaceSummary?> GetSummaryAsync(Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<WorkspaceSummary?> GetSummaryAsync(Guid workspaceId)
     {
         var workspace = await _dbContext.Workspaces
             .Where(w => w.Id == workspaceId)
             .Select(w => new { w.CreatedByUserId })
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         if (workspace is null)
         {
@@ -28,10 +28,10 @@ public class WorkspaceQueryService : IWorkspaceQueryService
         var creator = await _dbContext.Users
             .Where(u => u.Id == workspace.CreatedByUserId)
             .Select(u => new { u.DisplayName, u.Email })
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         var memberCount = await _dbContext.WorkspaceMembers
-            .CountAsync(m => m.WorkspaceId == workspaceId, cancellationToken);
+            .CountAsync(m => m.WorkspaceId == workspaceId);
 
         return new WorkspaceSummary(
             creator?.DisplayName ?? string.Empty,

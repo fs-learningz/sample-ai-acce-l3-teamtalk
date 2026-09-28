@@ -32,14 +32,14 @@ public class AuthServiceTests
             DisplayName = "Alice",
         };
         _identityService
-            .RegisterAsync("alice@example.com", "Alice", "Passw0rd!", Arg.Any<CancellationToken>())
+            .RegisterAsync("alice@example.com", "Alice", "Passw0rd!")
             .Returns(identityResult);
         _jwtTokenGenerator
             .GenerateToken(userId, "alice@example.com", "Alice")
             .Returns("fake-jwt-token");
 
         var request = new RegisterRequest { Email = "alice@example.com", DisplayName = "Alice", Password = "Passw0rd!" };
-        var result = await _sut.RegisterAsync(request, CancellationToken.None);
+        var result = await _sut.RegisterAsync(request);
 
         Assert.False(result.IsError);
         Assert.Equal(userId, result.Value.UserId);
@@ -50,11 +50,11 @@ public class AuthServiceTests
     public async Task RegisterAsync_WhenIdentityServiceFails_PropagatesError()
     {
         _identityService
-            .RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(AuthErrors.EmailAlreadyExists);
 
         var request = new RegisterRequest { Email = "alice@example.com", DisplayName = "Alice", Password = "Passw0rd!" };
-        var result = await _sut.RegisterAsync(request, CancellationToken.None);
+        var result = await _sut.RegisterAsync(request);
 
         Assert.True(result.IsError);
         Assert.Equal(AuthErrors.EmailAlreadyExists, result.FirstError);
@@ -64,11 +64,11 @@ public class AuthServiceTests
     public async Task LoginAsync_WhenCredentialsInvalid_ReturnsUnauthorizedError()
     {
         _identityService
-            .ValidateCredentialsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ValidateCredentialsAsync(Arg.Any<string>(), Arg.Any<string>())
             .Returns(AuthErrors.InvalidCredentials);
 
         var request = new LoginRequest { Email = "alice@example.com", Password = "wrong" };
-        var result = await _sut.LoginAsync(request, CancellationToken.None);
+        var result = await _sut.LoginAsync(request);
 
         Assert.True(result.IsError);
         Assert.Equal(ErrorType.Unauthorized, result.FirstError.Type);

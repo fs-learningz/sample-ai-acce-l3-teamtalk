@@ -23,7 +23,7 @@ public class MessageRepositoryTests
         await using (var writeDbContext = _fixture.CreateDbContext())
         {
             var repository = new MessageRepository(writeDbContext);
-            await repository.AddAsync(message, CancellationToken.None);
+            await repository.AddAsync(message);
         }
 
         message.SoftDelete(senderId, DateTime.UtcNow);
@@ -31,12 +31,12 @@ public class MessageRepositoryTests
         await using (var updateDbContext = _fixture.CreateDbContext())
         {
             var repository = new MessageRepository(updateDbContext);
-            await repository.UpdateAsync(message, CancellationToken.None);
+            await repository.UpdateAsync(message);
         }
 
         await using var readDbContext = _fixture.CreateDbContext();
         var readRepository = new MessageRepository(readDbContext);
-        var found = await readRepository.GetByIdAsync(message.Id, CancellationToken.None);
+        var found = await readRepository.GetByIdAsync(message.Id);
 
         Assert.NotNull(found);
         Assert.True(found!.IsDeleted);
@@ -55,13 +55,13 @@ public class MessageRepositoryTests
         await using (var writeDbContext = _fixture.CreateDbContext())
         {
             var repository = new MessageRepository(writeDbContext);
-            await repository.AddAsync(message, CancellationToken.None);
-            await repository.AddAsync(otherMessage, CancellationToken.None);
+            await repository.AddAsync(message);
+            await repository.AddAsync(otherMessage);
         }
 
         await using var readDbContext = _fixture.CreateDbContext();
         var readRepository = new MessageRepository(readDbContext);
-        var history = await readRepository.GetChannelHistoryAsync(channelId, null, 50, CancellationToken.None);
+        var history = await readRepository.GetChannelHistoryAsync(channelId, null, 50);
 
         Assert.Single(history);
         Assert.Equal(message.Id, history[0].Id);

@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
 
+namespace TeamTalk.AppHost;
+
 // Aspire falls back to another installed runtime (e.g. Podman) when Docker is down, which silently
 // starts a fresh, empty Postgres. Fail fast instead so a missing prerequisite is never masked.
 internal static class ContainerRuntimePreflight
@@ -12,6 +14,7 @@ internal static class ContainerRuntimePreflight
     public static void EnsureRuntimeIsRunning()
     {
         var runtime = Environment.GetEnvironmentVariable(RuntimeEnvironmentVariable);
+
         if (string.IsNullOrWhiteSpace(runtime))
         {
             runtime = DefaultRuntime;
@@ -33,7 +36,7 @@ internal static class ContainerRuntimePreflight
 
             _ = process.StandardOutput.ReadToEndAsync();
 
-            if (!process.WaitForExit(Timeout))
+            if (process.WaitForExit(Timeout) is false)
             {
                 process.Kill(entireProcessTree: true);
                 throw new InvalidOperationException(
@@ -41,7 +44,7 @@ internal static class ContainerRuntimePreflight
                     + "Make sure it is running, then start the AppHost again.");
             }
 
-            if (process.ExitCode != 0)
+            if (process.ExitCode is not 0)
             {
                 var error = errorTask.GetAwaiter().GetResult().Trim();
                 throw new InvalidOperationException(
