@@ -1,3 +1,5 @@
+ContainerRuntimePreflight.EnsureRuntimeIsRunning();
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var jwtKey = builder.AddParameter("jwt-key", secret: true);
