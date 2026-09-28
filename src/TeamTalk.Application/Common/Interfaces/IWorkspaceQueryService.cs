@@ -4,5 +4,5 @@ namespace TeamTalk.Application.Common.Interfaces;
 
 public interface IWorkspaceQueryService
 {
-    Task<WorkspaceSummary?> GetSummaryAsync(Guid workspaceId, CancellationToken cancellationToken);
+    Task<WorkspaceSummary?> GetSummaryAsync(Guid workspaceId);
 }

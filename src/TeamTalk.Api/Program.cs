@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using TeamTalk.Application;
 using TeamTalk.Infrastructure;
 using TeamTalk.Infrastructure.Persistence;
+using TeamTalk.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services
     .AddJwtBearer(options =>
     {
         var jwtKey = builder.Configuration["Jwt:Key"];
+
         if (string.IsNullOrWhiteSpace(jwtKey))
         {
             throw new InvalidOperationException("Jwt:Key configuration is missing.");

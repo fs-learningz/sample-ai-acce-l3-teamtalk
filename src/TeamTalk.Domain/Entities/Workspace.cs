@@ -50,7 +50,7 @@ public class Workspace
 
     public void SetIcon(byte[] iconData, string iconContentType, DateTime nowUtc)
     {
-        if (iconData.Length == 0)
+        if (iconData.Length is 0)
         {
             throw new DomainException("Workspace icon data is required.");
         }
@@ -80,6 +80,7 @@ public class Workspace
         }
 
         var trimmed = name.Trim();
+
         if (trimmed.Length > MaxNameLength)
         {
             throw new DomainException($"Workspace name cannot exceed {MaxNameLength} characters.");
@@ -91,9 +92,11 @@ public class Workspace
     private void SetDescription(string? description)
     {
         var trimmed = description?.Trim();
+
         if (string.IsNullOrEmpty(trimmed))
         {
             Description = null;
+
             return;
         }
 

@@ -17,16 +17,32 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> RegisterAsync(RegisterRequest request)
     {
-        var result = await _authService.RegisterAsync(request, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _authService.RegisterAsync(request);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> LoginAsync(LoginRequest request)
     {
-        var result = await _authService.LoginAsync(request, cancellationToken);
-        return result.ToActionResult(this);
+        var result = await _authService.LoginAsync(request);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
     }
 }

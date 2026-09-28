@@ -15,22 +15,22 @@ public class HubBroadcastService : IMessageBroadcastService
         _httpClient = httpClient;
     }
 
-    public async Task BroadcastMessageSentAsync(MessageResponse message, CancellationToken cancellationToken)
+    public async Task BroadcastMessageSentAsync(MessageResponse message)
     {
-        await BroadcastAsync(RealtimeConstants.Events.MessageSent, message, cancellationToken);
+        await BroadcastAsync(RealtimeConstants.Events.MessageSent, message);
     }
 
-    public async Task BroadcastMessageEditedAsync(MessageResponse message, CancellationToken cancellationToken)
+    public async Task BroadcastMessageEditedAsync(MessageResponse message)
     {
-        await BroadcastAsync(RealtimeConstants.Events.MessageEdited, message, cancellationToken);
+        await BroadcastAsync(RealtimeConstants.Events.MessageEdited, message);
     }
 
-    public async Task BroadcastMessageDeletedAsync(MessageResponse message, CancellationToken cancellationToken)
+    public async Task BroadcastMessageDeletedAsync(MessageResponse message)
     {
-        await BroadcastAsync(RealtimeConstants.Events.MessageDeleted, message, cancellationToken);
+        await BroadcastAsync(RealtimeConstants.Events.MessageDeleted, message);
     }
 
-    private async Task BroadcastAsync(string eventName, MessageResponse message, CancellationToken cancellationToken)
+    private async Task BroadcastAsync(string eventName, MessageResponse message)
     {
         var payload = new BroadcastMessageRequest
         {
@@ -40,8 +40,7 @@ public class HubBroadcastService : IMessageBroadcastService
 
         var response = await _httpClient.PostAsJsonAsync(
             $"/internal/broadcast/channels/{message.ChannelId}",
-            payload,
-            cancellationToken);
+            payload);
 
         response.EnsureSuccessStatusCode();
     }

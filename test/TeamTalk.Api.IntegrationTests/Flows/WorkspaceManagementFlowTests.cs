@@ -167,7 +167,8 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         Assert.Single(leaveResponses, r => r.StatusCode == HttpStatusCode.Conflict);
 
         var membersResponse = await ownerClient.GetAsync($"/api/workspaces/{workspace.Id}/members", cancellationToken);
-        if (membersResponse.StatusCode == HttpStatusCode.OK)
+
+        if (membersResponse.StatusCode is HttpStatusCode.OK)
         {
             var members = await membersResponse.Content.ReadFromJsonAsync<List<WorkspaceMemberDto>>(cancellationToken);
             Assert.NotNull(members);

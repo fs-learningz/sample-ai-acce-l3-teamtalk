@@ -13,12 +13,12 @@ public class WorkspaceRepository : IWorkspaceRepository
         _dbContext = dbContext;
     }
 
-    public async Task<Workspace?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Workspace?> GetByIdAsync(Guid id)
     {
-        return await _dbContext.Workspaces.FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
+        return await _dbContext.Workspaces.FirstOrDefaultAsync(w => w.Id == id);
     }
 
-    public async Task<IReadOnlyList<Workspace>> GetForUserAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Workspace>> GetForUserAsync(Guid userId)
     {
         var workspaceIds = _dbContext.WorkspaceMembers
             .Where(m => m.UserId == userId)
@@ -27,39 +27,39 @@ public class WorkspaceRepository : IWorkspaceRepository
         return await _dbContext.Workspaces
             .Where(w => workspaceIds.Contains(w.Id))
             .OrderBy(w => w.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 
-    public async Task AddAsync(Workspace workspace, CancellationToken cancellationToken)
+    public async Task AddAsync(Workspace workspace)
     {
-        await _dbContext.Workspaces.AddAsync(workspace, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.Workspaces.AddAsync(workspace);
+        await _dbContext.SaveChangesAsync();
     }
 
-    public async Task UpdateAsync(Workspace workspace, CancellationToken cancellationToken)
+    public async Task UpdateAsync(Workspace workspace)
     {
         _dbContext.Workspaces.Update(workspace);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id)
     {
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
             var channelIds = _dbContext.Channels.Where(c => c.WorkspaceId == id).Select(c => c.Id);
 
-            await _dbContext.Messages.Where(m => channelIds.Contains(m.ChannelId)).ExecuteDeleteAsync(cancellationToken);
-            await _dbContext.ChannelMembers.Where(cm => channelIds.Contains(cm.ChannelId)).ExecuteDeleteAsync(cancellationToken);
-            await _dbContext.Channels.Where(c => c.WorkspaceId == id).ExecuteDeleteAsync(cancellationToken);
-            await _dbContext.WorkspaceInvitations.Where(i => i.WorkspaceId == id).ExecuteDeleteAsync(cancellationToken);
-            await _dbContext.WorkspaceMembers.Where(m => m.WorkspaceId == id).ExecuteDeleteAsync(cancellationToken);
-            await _dbContext.Workspaces.Where(w => w.Id == id).ExecuteDeleteAsync(cancellationToken);
+            await _dbContext.Messages.Where(m => channelIds.Contains(m.ChannelId)).ExecuteDeleteAsync();
+            await _dbContext.ChannelMembers.Where(cm => channelIds.Contains(cm.ChannelId)).ExecuteDeleteAsync();
+            await _dbContext.Channels.Where(c => c.WorkspaceId == id).ExecuteDeleteAsync();
+            await _dbContext.WorkspaceInvitations.Where(i => i.WorkspaceId == id).ExecuteDeleteAsync();
+            await _dbContext.WorkspaceMembers.Where(m => m.WorkspaceId == id).ExecuteDeleteAsync();
+            await _dbContext.Workspaces.Where(w => w.Id == id).ExecuteDeleteAsync();
 
-            await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync();
         });
     }
 }

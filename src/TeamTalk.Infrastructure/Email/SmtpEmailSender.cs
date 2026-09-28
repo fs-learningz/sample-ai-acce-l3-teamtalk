@@ -17,7 +17,7 @@ public class SmtpEmailSender : IEmailSender
         _logger = logger;
     }
 
-    public async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken)
+    public async Task SendAsync(string toEmail, string subject, string htmlBody)
     {
         var host = _configuration["Email:Smtp:Host"];
         var fromAddress = _configuration["Email:FromAddress"] ?? "no-reply@teamtalk.local";
@@ -30,6 +30,7 @@ public class SmtpEmailSender : IEmailSender
                 toEmail,
                 subject,
                 htmlBody);
+
             return;
         }
 
@@ -43,7 +44,7 @@ public class SmtpEmailSender : IEmailSender
             EnableSsl = enableSsl,
         };
 
-        if (!string.IsNullOrWhiteSpace(user))
+        if (string.IsNullOrWhiteSpace(user) is false)
         {
             client.Credentials = new NetworkCredential(user, password);
         }
@@ -57,6 +58,6 @@ public class SmtpEmailSender : IEmailSender
         };
         message.To.Add(toEmail);
 
-        await client.SendMailAsync(message, cancellationToken);
+        await client.SendMailAsync(message);
     }
 }

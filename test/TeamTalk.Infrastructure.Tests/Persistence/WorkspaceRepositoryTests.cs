@@ -22,12 +22,12 @@ public class WorkspaceRepositoryTests
         await using (var writeDbContext = _fixture.CreateDbContext())
         {
             var repository = new WorkspaceRepository(writeDbContext);
-            await repository.AddAsync(workspace, CancellationToken.None);
+            await repository.AddAsync(workspace);
         }
 
         await using var readDbContext = _fixture.CreateDbContext();
         var readRepository = new WorkspaceRepository(readDbContext);
-        var found = await readRepository.GetByIdAsync(workspace.Id, CancellationToken.None);
+        var found = await readRepository.GetByIdAsync(workspace.Id);
 
         Assert.NotNull(found);
         Assert.Equal("Engineering", found!.Name);
@@ -44,15 +44,15 @@ public class WorkspaceRepositoryTests
         await using (var writeDbContext = _fixture.CreateDbContext())
         {
             var workspaceRepository = new WorkspaceRepository(writeDbContext);
-            await workspaceRepository.AddAsync(workspace, CancellationToken.None);
+            await workspaceRepository.AddAsync(workspace);
 
             var memberRepository = new WorkspaceMemberRepository(writeDbContext);
-            await memberRepository.AddAsync(member, CancellationToken.None);
+            await memberRepository.AddAsync(member);
         }
 
         await using var readDbContext = _fixture.CreateDbContext();
         var readRepository = new WorkspaceRepository(readDbContext);
-        var found = await readRepository.GetForUserAsync(userId, CancellationToken.None);
+        var found = await readRepository.GetForUserAsync(userId);
 
         Assert.Contains(found, w => w.Id == workspace.Id);
     }

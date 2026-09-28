@@ -29,7 +29,7 @@ public class WorkspaceInvitation
         Guid invitedByUserId,
         DateTime createdAtUtc)
     {
-        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        if (string.IsNullOrWhiteSpace(email) || email.Contains('@') is false)
         {
             throw new DomainException("A valid email address is required.");
         }
@@ -71,7 +71,7 @@ public class WorkspaceInvitation
 
     private void EnsurePending()
     {
-        if (Status != InvitationStatus.Pending)
+        if (Status is not InvitationStatus.Pending)
         {
             throw new DomainException("This invitation has already been responded to.");
         }

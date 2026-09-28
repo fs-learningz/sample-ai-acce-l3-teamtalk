@@ -31,23 +31,22 @@ public class WorkspaceServiceTests
         var userId = Guid.NewGuid();
         var request = new CreateWorkspaceRequest { Name = "Engineering" };
 
-        var result = await _sut.CreateAsync(userId, request, CancellationToken.None);
+        var result = await _sut.CreateAsync(userId, request);
 
         Assert.False(result.IsError);
         Assert.Equal("Engineering", result.Value.Name);
         Assert.Equal(userId, result.Value.CreatedByUserId);
-        await _workspaceRepository.Received(1).AddAsync(Arg.Any<Workspace>(), Arg.Any<CancellationToken>());
+        await _workspaceRepository.Received(1).AddAsync(Arg.Any<Workspace>());
         await _workspaceMemberRepository.Received(1).AddAsync(
-            Arg.Is<WorkspaceMember>(m => m.UserId == userId && m.IsAdmin()),
-            Arg.Any<CancellationToken>());
+            Arg.Is<WorkspaceMember>(m => m.UserId == userId && m.IsAdmin()));
     }
 
     [Fact]
     public async Task GetByIdAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
     {
-        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Workspace?)null);
+        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
 
-        var result = await _sut.GetByIdAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+        var result = await _sut.GetByIdAsync(Guid.NewGuid(), Guid.NewGuid());
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
@@ -57,10 +56,10 @@ public class WorkspaceServiceTests
     public async Task GetByIdAsync_WhenUserIsNotMember_ReturnsForbidden()
     {
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
 
-        var result = await _sut.GetByIdAsync(Guid.NewGuid(), workspace.Id, CancellationToken.None);
+        var result = await _sut.GetByIdAsync(Guid.NewGuid(), workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
@@ -72,12 +71,12 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var userId = Guid.NewGuid();
         var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, userId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, userId, Arg.Any<CancellationToken>()).Returns(member);
-        _workspaceQueryService.GetSummaryAsync(workspace.Id, Arg.Any<CancellationToken>())
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, userId).Returns(member);
+        _workspaceQueryService.GetSummaryAsync(workspace.Id)
             .Returns(new WorkspaceSummary("Creator", "creator@example.com", 3));
 
-        var result = await _sut.GetByIdAsync(userId, workspace.Id, CancellationToken.None);
+        var result = await _sut.GetByIdAsync(userId, workspace.Id);
 
         Assert.False(result.IsError);
         Assert.Equal(WorkspaceRole.Admin, result.Value.CurrentUserRole);
@@ -91,14 +90,13 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var memberId = Guid.NewGuid();
         var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, memberId, WorkspaceRole.Member, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, memberId, Arg.Any<CancellationToken>()).Returns(member);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, memberId).Returns(member);
 
         var result = await _sut.UpdateAsync(
             memberId,
             workspace.Id,
-            new UpdateWorkspaceRequest { Name = "New name" },
-            CancellationToken.None);
+            new UpdateWorkspaceRequest { Name = "New name" });
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
@@ -110,14 +108,13 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
         var result = await _sut.UpdateAsync(
             adminId,
             workspace.Id,
-            new UpdateWorkspaceRequest { Name = new string('a', Workspace.MaxNameLength + 1) },
-            CancellationToken.None);
+            new UpdateWorkspaceRequest { Name = new string('a', Workspace.MaxNameLength + 1) });
 
         Assert.True(result.IsError);
         Assert.Equal("Workspace.NameTooLong", result.FirstError.Code);
@@ -129,19 +126,18 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
         var result = await _sut.UpdateAsync(
             adminId,
             workspace.Id,
-            new UpdateWorkspaceRequest { Name = "Renamed", Description = "New description" },
-            CancellationToken.None);
+            new UpdateWorkspaceRequest { Name = "Renamed", Description = "New description" });
 
         Assert.False(result.IsError);
         Assert.Equal("Renamed", result.Value.Name);
         Assert.Equal("New description", result.Value.Description);
-        await _workspaceRepository.Received(1).UpdateAsync(workspace, Arg.Any<CancellationToken>());
+        await _workspaceRepository.Received(1).UpdateAsync(workspace);
     }
 
     [Fact]
@@ -150,12 +146,12 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
         var oversizedIcon = new byte[2 * 1024 * 1024 + 1];
 
-        var result = await _sut.UpdateIconAsync(adminId, workspace.Id, oversizedIcon, "image/png", CancellationToken.None);
+        var result = await _sut.UpdateIconAsync(adminId, workspace.Id, oversizedIcon, "image/png");
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.IconTooLarge, result.FirstError);
@@ -167,10 +163,10 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
-        var result = await _sut.UpdateIconAsync(adminId, workspace.Id, [1, 2, 3], "image/gif", CancellationToken.None);
+        var result = await _sut.UpdateIconAsync(adminId, workspace.Id, [1, 2, 3], "image/gif");
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.UnsupportedIconFormat, result.FirstError);
@@ -182,14 +178,14 @@ public class WorkspaceServiceTests
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
-        var result = await _sut.UpdateIconAsync(adminId, workspace.Id, [1, 2, 3], "image/png", CancellationToken.None);
+        var result = await _sut.UpdateIconAsync(adminId, workspace.Id, [1, 2, 3], "image/png");
 
         Assert.False(result.IsError);
         Assert.True(result.Value.HasIcon);
-        await _workspaceRepository.Received(1).UpdateAsync(workspace, Arg.Any<CancellationToken>());
+        await _workspaceRepository.Received(1).UpdateAsync(workspace);
     }
 
     [Fact]
@@ -197,10 +193,10 @@ public class WorkspaceServiceTests
     {
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var userId = Guid.NewGuid();
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.IsMemberAsync(workspace.Id, userId, Arg.Any<CancellationToken>()).Returns(true);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.IsMemberAsync(workspace.Id, userId).Returns(true);
 
-        var result = await _sut.GetIconAsync(userId, workspace.Id, CancellationToken.None);
+        var result = await _sut.GetIconAsync(userId, workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.IconNotFound, result.FirstError);
@@ -209,9 +205,9 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task DeleteAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
     {
-        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Workspace?)null);
+        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
 
-        var result = await _sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+        var result = await _sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
@@ -221,10 +217,10 @@ public class WorkspaceServiceTests
     public async Task DeleteAsync_WhenUserIsNotMember_ReturnsForbidden()
     {
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((WorkspaceMember?)null);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
 
-        var result = await _sut.DeleteAsync(Guid.NewGuid(), workspace.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(Guid.NewGuid(), workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
@@ -237,14 +233,14 @@ public class WorkspaceServiceTests
         var memberId = Guid.NewGuid();
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", creatorId, DateTime.UtcNow);
         var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, memberId, WorkspaceRole.Member, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, memberId, Arg.Any<CancellationToken>()).Returns(member);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, memberId).Returns(member);
 
-        var result = await _sut.DeleteAsync(memberId, workspace.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(memberId, workspace.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
-        await _workspaceRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _workspaceRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>());
     }
 
     [Fact]
@@ -254,12 +250,12 @@ public class WorkspaceServiceTests
         var adminId = Guid.NewGuid();
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", creatorId, DateTime.UtcNow);
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceRepository.GetByIdAsync(workspace.Id, Arg.Any<CancellationToken>()).Returns(workspace);
-        _workspaceMemberRepository.GetAsync(workspace.Id, adminId, Arg.Any<CancellationToken>()).Returns(admin);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
-        var result = await _sut.DeleteAsync(adminId, workspace.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(adminId, workspace.Id);
 
         Assert.False(result.IsError);
-        await _workspaceRepository.Received(1).DeleteAsync(workspace.Id, Arg.Any<CancellationToken>());
+        await _workspaceRepository.Received(1).DeleteAsync(workspace.Id);
     }
 }

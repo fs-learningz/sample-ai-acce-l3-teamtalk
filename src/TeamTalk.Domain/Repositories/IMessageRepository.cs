@@ -4,15 +4,14 @@ namespace TeamTalk.Domain.Repositories;
 
 public interface IMessageRepository
 {
-    Task<Message?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<Message?> GetByIdAsync(Guid id);
 
     Task<IReadOnlyList<Message>> GetChannelHistoryAsync(
         Guid channelId,
         DateTime? beforeUtc,
-        int pageSize,
-        CancellationToken cancellationToken);
+        int pageSize);
 
-    Task AddAsync(Message message, CancellationToken cancellationToken);
+    Task AddAsync(Message message);
 
-    Task UpdateAsync(Message message, CancellationToken cancellationToken);
+    Task UpdateAsync(Message message);
 }

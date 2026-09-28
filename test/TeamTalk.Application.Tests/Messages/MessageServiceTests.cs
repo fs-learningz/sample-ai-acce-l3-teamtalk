@@ -54,19 +54,19 @@ public class MessageServiceTests
     {
         var channelId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        _channelService.EnsureCanPostAsync(channelId, userId, Arg.Any<CancellationToken>()).Returns(Result.Success);
+        _channelService.EnsureCanPostAsync(channelId, userId).Returns(Result.Success);
 
         var messageId = Guid.NewGuid();
         _messageQueryService
-            .GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .GetByIdAsync(Arg.Any<Guid>())
             .Returns(BuildResponse(messageId, channelId, userId));
 
         var request = new SendMessageRequest { Content = "hello" };
-        var result = await _sut.SendAsync(userId, channelId, request, CancellationToken.None);
+        var result = await _sut.SendAsync(userId, channelId, request);
 
         Assert.False(result.IsError);
-        await _messageRepository.Received(1).AddAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>());
-        await _messageBroadcastService.Received(1).BroadcastMessageSentAsync(Arg.Any<MessageResponse>(), Arg.Any<CancellationToken>());
+        await _messageRepository.Received(1).AddAsync(Arg.Any<Message>());
+        await _messageBroadcastService.Received(1).BroadcastMessageSentAsync(Arg.Any<MessageResponse>());
     }
 
     [Fact]
@@ -74,14 +74,14 @@ public class MessageServiceTests
     {
         var channelId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        _channelService.EnsureCanPostAsync(channelId, userId, Arg.Any<CancellationToken>()).Returns(ChannelErrors.NotVisible);
+        _channelService.EnsureCanPostAsync(channelId, userId).Returns(ChannelErrors.NotVisible);
 
         var request = new SendMessageRequest { Content = "hello" };
-        var result = await _sut.SendAsync(userId, channelId, request, CancellationToken.None);
+        var result = await _sut.SendAsync(userId, channelId, request);
 
         Assert.True(result.IsError);
         Assert.Equal(ChannelErrors.NotVisible, result.FirstError);
-        await _messageRepository.DidNotReceive().AddAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>());
+        await _messageRepository.DidNotReceive().AddAsync(Arg.Any<Message>());
     }
 
     [Fact]
@@ -90,10 +90,10 @@ public class MessageServiceTests
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
         var message = new Message(Guid.NewGuid(), channelId, authorId, "original", DateTime.UtcNow);
-        _messageRepository.GetByIdAsync(message.Id, Arg.Any<CancellationToken>()).Returns(message);
+        _messageRepository.GetByIdAsync(message.Id).Returns(message);
 
         var request = new EditMessageRequest { Content = "updated" };
-        var result = await _sut.EditAsync(Guid.NewGuid(), channelId, message.Id, request, CancellationToken.None);
+        var result = await _sut.EditAsync(Guid.NewGuid(), channelId, message.Id, request);
 
         Assert.True(result.IsError);
         Assert.Equal(MessageErrors.NotAuthor, result.FirstError);
@@ -106,15 +106,15 @@ public class MessageServiceTests
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
         var message = new Message(Guid.NewGuid(), channelId, authorId, "original", DateTime.UtcNow);
-        _messageRepository.GetByIdAsync(message.Id, Arg.Any<CancellationToken>()).Returns(message);
+        _messageRepository.GetByIdAsync(message.Id).Returns(message);
         _messageQueryService
-            .GetByIdAsync(message.Id, Arg.Any<CancellationToken>())
+            .GetByIdAsync(message.Id)
             .Returns(BuildResponse(message.Id, channelId, authorId, isDeleted: true));
 
-        var result = await _sut.DeleteAsync(authorId, workspaceId, channelId, message.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(authorId, workspaceId, channelId, message.Id);
 
         Assert.False(result.IsError);
-        await _messageRepository.Received(1).UpdateAsync(Arg.Is<Message>(m => m.IsDeleted), Arg.Any<CancellationToken>());
+        await _messageRepository.Received(1).UpdateAsync(Arg.Is<Message>(m => m.IsDeleted));
     }
 
     [Fact]
@@ -125,9 +125,9 @@ public class MessageServiceTests
         var authorId = Guid.NewGuid();
         var message = new Message(Guid.NewGuid(), channelId, authorId, "original", DateTime.UtcNow);
         message.SoftDelete(authorId, DateTime.UtcNow);
-        _messageRepository.GetByIdAsync(message.Id, Arg.Any<CancellationToken>()).Returns(message);
+        _messageRepository.GetByIdAsync(message.Id).Returns(message);
 
-        var result = await _sut.DeleteAsync(authorId, workspaceId, channelId, message.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(authorId, workspaceId, channelId, message.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(MessageErrors.AlreadyDeleted, result.FirstError);
@@ -141,14 +141,14 @@ public class MessageServiceTests
         var authorId = Guid.NewGuid();
         var adminId = Guid.NewGuid();
         var message = new Message(Guid.NewGuid(), channelId, authorId, "original", DateTime.UtcNow);
-        _messageRepository.GetByIdAsync(message.Id, Arg.Any<CancellationToken>()).Returns(message);
+        _messageRepository.GetByIdAsync(message.Id).Returns(message);
         var adminMembership = new WorkspaceMember(Guid.NewGuid(), workspaceId, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
-        _workspaceMemberRepository.GetAsync(workspaceId, adminId, Arg.Any<CancellationToken>()).Returns(adminMembership);
+        _workspaceMemberRepository.GetAsync(workspaceId, adminId).Returns(adminMembership);
         _messageQueryService
-            .GetByIdAsync(message.Id, Arg.Any<CancellationToken>())
+            .GetByIdAsync(message.Id)
             .Returns(BuildResponse(message.Id, channelId, authorId, isDeleted: true));
 
-        var result = await _sut.DeleteAsync(adminId, workspaceId, channelId, message.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(adminId, workspaceId, channelId, message.Id);
 
         Assert.False(result.IsError);
     }
@@ -161,11 +161,11 @@ public class MessageServiceTests
         var authorId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
         var message = new Message(Guid.NewGuid(), channelId, authorId, "original", DateTime.UtcNow);
-        _messageRepository.GetByIdAsync(message.Id, Arg.Any<CancellationToken>()).Returns(message);
+        _messageRepository.GetByIdAsync(message.Id).Returns(message);
         var memberMembership = new WorkspaceMember(Guid.NewGuid(), workspaceId, otherUserId, WorkspaceRole.Member, DateTime.UtcNow);
-        _workspaceMemberRepository.GetAsync(workspaceId, otherUserId, Arg.Any<CancellationToken>()).Returns(memberMembership);
+        _workspaceMemberRepository.GetAsync(workspaceId, otherUserId).Returns(memberMembership);
 
-        var result = await _sut.DeleteAsync(otherUserId, workspaceId, channelId, message.Id, CancellationToken.None);
+        var result = await _sut.DeleteAsync(otherUserId, workspaceId, channelId, message.Id);
 
         Assert.True(result.IsError);
         Assert.Equal(MessageErrors.NotAuthorOrAdmin, result.FirstError);

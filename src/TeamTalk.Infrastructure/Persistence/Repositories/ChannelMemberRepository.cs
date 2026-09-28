@@ -13,15 +13,15 @@ public class ChannelMemberRepository : IChannelMemberRepository
         _dbContext = dbContext;
     }
 
-    public async Task<bool> IsMemberAsync(Guid channelId, Guid userId, CancellationToken cancellationToken)
+    public async Task<bool> IsMemberAsync(Guid channelId, Guid userId)
     {
         return await _dbContext.ChannelMembers
-            .AnyAsync(m => m.ChannelId == channelId && m.UserId == userId, cancellationToken);
+            .AnyAsync(m => m.ChannelId == channelId && m.UserId == userId);
     }
 
-    public async Task AddAsync(ChannelMember member, CancellationToken cancellationToken)
+    public async Task AddAsync(ChannelMember member)
     {
-        await _dbContext.ChannelMembers.AddAsync(member, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.ChannelMembers.AddAsync(member);
+        await _dbContext.SaveChangesAsync();
     }
 }

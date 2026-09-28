@@ -38,44 +38,48 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
     public async Task<ErrorOr<WorkspaceInvitationResponse>> InviteAsync(
         Guid inviterUserId,
         Guid workspaceId,
-        InviteMemberRequest request,
-        CancellationToken cancellationToken)
+        InviteMemberRequest request)
     {
-        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+
         if (workspace is null)
         {
             return WorkspaceErrors.NotFound;
         }
 
-        var inviter = await _workspaceMemberRepository.GetAsync(workspaceId, inviterUserId, cancellationToken);
+        var inviter = await _workspaceMemberRepository.GetAsync(workspaceId, inviterUserId);
+
         if (inviter is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        if (!inviter.IsAdmin())
+        if (inviter.IsAdmin() is false)
         {
             return WorkspaceErrors.NotAnAdmin;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Contains('@') is false)
         {
             return Error.Validation("Invitation.EmailRequired", "A valid email address is required.");
         }
 
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        var existingUserId = await _identityService.FindUserIdByEmailAsync(normalizedEmail, cancellationToken);
+        var existingUserId = await _identityService.FindUserIdByEmailAsync(normalizedEmail);
+
         if (existingUserId is not null)
         {
-            var isAlreadyMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, existingUserId.Value, cancellationToken);
+            var isAlreadyMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, existingUserId.Value);
+
             if (isAlreadyMember)
             {
                 return InvitationErrors.AlreadyAMember;
             }
         }
 
-        var existingInvitation = await _invitationRepository.GetPendingByWorkspaceAndEmailAsync(workspaceId, normalizedEmail, cancellationToken);
+        var existingInvitation = await _invitationRepository.GetPendingByWorkspaceAndEmailAsync(workspaceId, normalizedEmail);
+
         if (existingInvitation is not null)
         {
             return InvitationErrors.AlreadyPending;
@@ -90,54 +94,56 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
             inviterUserId,
             nowUtc);
 
-        await _invitationRepository.AddAsync(invitation, cancellationToken);
+        await _invitationRepository.AddAsync(invitation);
 
-        await TrySendInvitationEmailAsync(invitation, workspace.Name, cancellationToken);
+        await TrySendInvitationEmailAsync(invitation, workspace.Name);
 
         return ToResponse(invitation, workspace);
     }
 
     public async Task<ErrorOr<IReadOnlyList<WorkspaceInvitationResponse>>> GetForWorkspaceAsync(
         Guid userId,
-        Guid workspaceId,
-        CancellationToken cancellationToken)
+        Guid workspaceId)
     {
-        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+
         if (workspace is null)
         {
             return WorkspaceErrors.NotFound;
         }
 
-        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId);
+
         if (member is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        if (!member.IsAdmin())
+        if (member.IsAdmin() is false)
         {
             return WorkspaceErrors.NotAnAdmin;
         }
 
-        var invitations = await _invitationRepository.GetForWorkspaceAsync(workspaceId, cancellationToken);
+        var invitations = await _invitationRepository.GetForWorkspaceAsync(workspaceId);
+
         return invitations.Select(i => ToResponse(i, workspace)).ToList();
     }
 
     public async Task<ErrorOr<IReadOnlyList<WorkspaceInvitationResponse>>> GetPendingForCurrentUserAsync(
         Guid userId,
-        string userEmail,
-        CancellationToken cancellationToken)
+        string userEmail)
     {
         var normalizedEmail = userEmail.Trim().ToLowerInvariant();
-        var invitations = await _invitationRepository.GetPendingForEmailAsync(normalizedEmail, cancellationToken);
+        var invitations = await _invitationRepository.GetPendingForEmailAsync(normalizedEmail);
 
         var workspaceCache = new Dictionary<Guid, Workspace?>();
         var responses = new List<WorkspaceInvitationResponse>();
+
         foreach (var invitation in invitations)
         {
-            if (!workspaceCache.TryGetValue(invitation.WorkspaceId, out var workspace))
+            if (workspaceCache.TryGetValue(invitation.WorkspaceId, out var workspace) is false)
             {
-                workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId, cancellationToken);
+                workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId);
                 workspaceCache[invitation.WorkspaceId] = workspace;
             }
 
@@ -149,17 +155,18 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
 
     public async Task<ErrorOr<WorkspaceIconResponse>> GetWorkspaceIconAsync(
         string userEmail,
-        Guid invitationId,
-        CancellationToken cancellationToken)
+        Guid invitationId)
     {
-        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId, cancellationToken);
+        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId);
+
         if (invitationResult.IsError)
         {
             return invitationResult.Errors;
         }
 
         var invitation = invitationResult.Value;
-        var workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(invitation.WorkspaceId);
+
         if (workspace?.IconData is null || workspace.IconContentType is null)
         {
             return WorkspaceErrors.IconNotFound;
@@ -168,9 +175,10 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
         return new WorkspaceIconResponse { Data = workspace.IconData, ContentType = workspace.IconContentType };
     }
 
-    public async Task<ErrorOr<Success>> AcceptAsync(Guid userId, string userEmail, Guid invitationId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> AcceptAsync(Guid userId, string userEmail, Guid invitationId)
     {
-        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId, cancellationToken);
+        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId);
+
         if (invitationResult.IsError)
         {
             return invitationResult.Errors;
@@ -179,21 +187,23 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
         var invitation = invitationResult.Value;
         var nowUtc = DateTime.UtcNow;
         invitation.Accept(nowUtc);
-        await _invitationRepository.UpdateAsync(invitation, cancellationToken);
+        await _invitationRepository.UpdateAsync(invitation);
 
-        var isAlreadyMember = await _workspaceMemberRepository.IsMemberAsync(invitation.WorkspaceId, userId, cancellationToken);
-        if (!isAlreadyMember)
+        var isAlreadyMember = await _workspaceMemberRepository.IsMemberAsync(invitation.WorkspaceId, userId);
+
+        if (isAlreadyMember is false)
         {
             var member = new WorkspaceMember(Guid.CreateVersion7(), invitation.WorkspaceId, userId, invitation.Role, nowUtc);
-            await _workspaceMemberRepository.AddAsync(member, cancellationToken);
+            await _workspaceMemberRepository.AddAsync(member);
         }
 
         return Result.Success;
     }
 
-    public async Task<ErrorOr<Success>> DeclineAsync(Guid userId, string userEmail, Guid invitationId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> DeclineAsync(Guid userId, string userEmail, Guid invitationId)
     {
-        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId, cancellationToken);
+        var invitationResult = await GetPendingInvitationForUserAsync(userEmail, invitationId);
+
         if (invitationResult.IsError)
         {
             return invitationResult.Errors;
@@ -201,53 +211,55 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
 
         var invitation = invitationResult.Value;
         invitation.Decline(DateTime.UtcNow);
-        await _invitationRepository.UpdateAsync(invitation, cancellationToken);
+        await _invitationRepository.UpdateAsync(invitation);
 
         return Result.Success;
     }
 
-    public async Task<ErrorOr<Success>> RevokeAsync(Guid userId, Guid workspaceId, Guid invitationId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> RevokeAsync(Guid userId, Guid workspaceId, Guid invitationId)
     {
-        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId);
+
         if (member is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        if (!member.IsAdmin())
+        if (member.IsAdmin() is false)
         {
             return WorkspaceErrors.NotAnAdmin;
         }
 
-        var invitation = await _invitationRepository.GetByIdAsync(invitationId, cancellationToken);
+        var invitation = await _invitationRepository.GetByIdAsync(invitationId);
+
         if (invitation is null || invitation.WorkspaceId != workspaceId)
         {
             return InvitationErrors.NotFound;
         }
 
-        if (invitation.Status != InvitationStatus.Pending)
+        if (invitation.Status is not InvitationStatus.Pending)
         {
             return InvitationErrors.NotPending;
         }
 
         invitation.Revoke(DateTime.UtcNow);
-        await _invitationRepository.UpdateAsync(invitation, cancellationToken);
+        await _invitationRepository.UpdateAsync(invitation);
 
         return Result.Success;
     }
 
     private async Task<ErrorOr<WorkspaceInvitation>> GetPendingInvitationForUserAsync(
         string userEmail,
-        Guid invitationId,
-        CancellationToken cancellationToken)
+        Guid invitationId)
     {
-        var invitation = await _invitationRepository.GetByIdAsync(invitationId, cancellationToken);
-        if (invitation is null || !string.Equals(invitation.Email, userEmail.Trim().ToLowerInvariant(), StringComparison.Ordinal))
+        var invitation = await _invitationRepository.GetByIdAsync(invitationId);
+
+        if (invitation is null || string.Equals(invitation.Email, userEmail.Trim().ToLowerInvariant(), StringComparison.Ordinal) is false)
         {
             return InvitationErrors.NotFound;
         }
 
-        if (invitation.Status != InvitationStatus.Pending)
+        if (invitation.Status is not InvitationStatus.Pending)
         {
             return InvitationErrors.NotPending;
         }
@@ -255,7 +267,7 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
         return invitation;
     }
 
-    private async Task TrySendInvitationEmailAsync(WorkspaceInvitation invitation, string workspaceName, CancellationToken cancellationToken)
+    private async Task TrySendInvitationEmailAsync(WorkspaceInvitation invitation, string workspaceName)
     {
         try
         {
@@ -263,7 +275,7 @@ public class WorkspaceInvitationService : IWorkspaceInvitationService
             var body = $"<p>You've been invited to join <strong>{workspaceName}</strong> on TeamTalk.</p>" +
                        "<p>Log in to TeamTalk with this email address to view and respond to the invitation.</p>";
 
-            await _emailSender.SendAsync(invitation.Email, subject, body, cancellationToken);
+            await _emailSender.SendAsync(invitation.Email, subject, body);
         }
         catch (Exception ex)
         {

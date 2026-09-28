@@ -28,6 +28,7 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         await _container.StartAsync();
 
         await InitializationLock.WaitAsync();
+
         try
         {
             // Program.cs and Aspire's client integrations (e.g. AddNpgsqlDbContext) read some

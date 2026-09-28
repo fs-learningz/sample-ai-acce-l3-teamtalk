@@ -9,6 +9,7 @@ var targetConnectionString = Environment.GetEnvironmentVariable("TARGET_CONNECTI
 if (string.IsNullOrWhiteSpace(sourceConnectionString) || string.IsNullOrWhiteSpace(targetConnectionString))
 {
     Console.Error.WriteLine("Set SOURCE_CONNECTION_STRING (SQL Server) and TARGET_CONNECTION_STRING (PostgreSQL) environment variables before running.");
+
     return 1;
 }
 
@@ -25,18 +26,21 @@ var targetOptions = new DbContextOptionsBuilder<TeamTalkDbContext>()
 await using var source = new TeamTalkDbContext(sourceOptions);
 await using var target = new TeamTalkDbContext(targetOptions);
 
-if (!await target.Database.CanConnectAsync())
+if (await target.Database.CanConnectAsync() is false)
 {
     Console.Error.WriteLine("Cannot connect to the target PostgreSQL database. Check TARGET_CONNECTION_STRING.");
+
     return 1;
 }
 
 var appliedMigrations = (await target.Database.GetAppliedMigrationsAsync()).ToList();
-if (appliedMigrations.Count == 0)
+
+if (appliedMigrations.Count is 0)
 {
     Console.Error.WriteLine(
         "The target database has no applied migrations. Run 'dotnet ef database update' against " +
         "TARGET_CONNECTION_STRING (see this tool's README) before copying data.");
+
     return 1;
 }
 
@@ -72,6 +76,7 @@ await target.Database.ExecuteSqlAsync(
 Console.WriteLine();
 Console.WriteLine("Row count verification:");
 var mismatch = false;
+
 foreach (var (table, sourceCount, targetCount) in results)
 {
     var status = sourceCount == targetCount ? "OK" : "MISMATCH";
@@ -85,6 +90,7 @@ if (mismatch)
 {
     Console.Error.WriteLine();
     Console.Error.WriteLine("One or more tables had a row count mismatch. Investigate before cutting over.");
+
     return 1;
 }
 
@@ -93,6 +99,7 @@ if (mismatch)
 // ordering guarantees parents exist before children are inserted.
 Console.WriteLine();
 Console.WriteLine("Copy complete. Verify the application against the target database, then delete this tool.");
+
 return 0;
 
 static async Task<(string Table, int SourceCount, int TargetCount)> CopyTableAsync<TEntity>(
@@ -131,6 +138,7 @@ static async Task<(string Table, int SourceCount, int TargetCount)> CopyTableAsy
 
     var targetCount = await select(target).CountAsync();
     Console.WriteLine($"  {tableName}: {copied} rows copied.");
+
     return (tableName, copied, targetCount);
 }
 
@@ -152,7 +160,8 @@ static void NormalizeUtcKind<TEntity>(TEntity entity) where TEntity : class
         if (property.PropertyType == typeof(DateTime))
         {
             var value = (DateTime)property.GetValue(entity)!;
-            if (value.Kind != DateTimeKind.Utc)
+
+            if (value.Kind is not DateTimeKind.Utc)
             {
                 property.SetValue(entity, DateTime.SpecifyKind(value, DateTimeKind.Utc));
             }
@@ -169,7 +178,7 @@ static void NormalizeUtcKind<TEntity>(TEntity entity) where TEntity : class
 
 static async Task SpotCheckTimestampsAsync(TeamTalkDbContext source, TeamTalkDbContext target)
 {
-    if (!await source.Messages.AnyAsync())
+    if (await source.Messages.AnyAsync() is false)
     {
         return;
     }

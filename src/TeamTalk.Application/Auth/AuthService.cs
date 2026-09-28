@@ -15,13 +15,12 @@ public class AuthService : IAuthService
         _jwtTokenGenerator = jwtTokenGenerator;
     }
 
-    public async Task<ErrorOr<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<AuthResponse>> RegisterAsync(RegisterRequest request)
     {
         var result = await _identityService.RegisterAsync(
             request.Email,
             request.DisplayName,
-            request.Password,
-            cancellationToken);
+            request.Password);
 
         if (result.IsError)
         {
@@ -31,9 +30,9 @@ public class AuthService : IAuthService
         return BuildAuthResponse(result.Value.UserId, result.Value.Email, result.Value.DisplayName);
     }
 
-    public async Task<ErrorOr<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<AuthResponse>> LoginAsync(LoginRequest request)
     {
-        var result = await _identityService.ValidateCredentialsAsync(request.Email, request.Password, cancellationToken);
+        var result = await _identityService.ValidateCredentialsAsync(request.Email, request.Password);
 
         if (result.IsError)
         {

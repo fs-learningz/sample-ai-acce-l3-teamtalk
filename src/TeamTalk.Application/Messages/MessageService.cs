@@ -36,10 +36,10 @@ public class MessageService : IMessageService
     public async Task<ErrorOr<MessageResponse>> SendAsync(
         Guid userId,
         Guid channelId,
-        SendMessageRequest request,
-        CancellationToken cancellationToken)
+        SendMessageRequest request)
     {
-        var accessResult = await _channelService.EnsureCanPostAsync(channelId, userId, cancellationToken);
+        var accessResult = await _channelService.EnsureCanPostAsync(channelId, userId);
+
         if (accessResult.IsError)
         {
             return accessResult.Errors;
@@ -51,15 +51,17 @@ public class MessageService : IMessageService
         }
 
         var message = new Message(Guid.CreateVersion7(), channelId, userId, request.Content, DateTime.UtcNow);
-        await _messageRepository.AddAsync(message, cancellationToken);
+        await _messageRepository.AddAsync(message);
 
-        var response = await _messageQueryService.GetByIdAsync(message.Id, cancellationToken);
+        var response = await _messageQueryService.GetByIdAsync(message.Id);
+
         if (response is null)
         {
             return MessageErrors.NotFound;
         }
 
-        await _messageBroadcastService.BroadcastMessageSentAsync(response, cancellationToken);
+        await _messageBroadcastService.BroadcastMessageSentAsync(response);
+
         return response;
     }
 
@@ -67,10 +69,10 @@ public class MessageService : IMessageService
         Guid userId,
         Guid channelId,
         Guid messageId,
-        EditMessageRequest request,
-        CancellationToken cancellationToken)
+        EditMessageRequest request)
     {
-        var message = await _messageRepository.GetByIdAsync(messageId, cancellationToken);
+        var message = await _messageRepository.GetByIdAsync(messageId);
+
         if (message is null || message.ChannelId != channelId)
         {
             return MessageErrors.NotFound;
@@ -92,15 +94,17 @@ public class MessageService : IMessageService
         }
 
         message.Edit(request.Content, DateTime.UtcNow);
-        await _messageRepository.UpdateAsync(message, cancellationToken);
+        await _messageRepository.UpdateAsync(message);
 
-        var response = await _messageQueryService.GetByIdAsync(message.Id, cancellationToken);
+        var response = await _messageQueryService.GetByIdAsync(message.Id);
+
         if (response is null)
         {
             return MessageErrors.NotFound;
         }
 
-        await _messageBroadcastService.BroadcastMessageEditedAsync(response, cancellationToken);
+        await _messageBroadcastService.BroadcastMessageEditedAsync(response);
+
         return response;
     }
 
@@ -108,10 +112,10 @@ public class MessageService : IMessageService
         Guid userId,
         Guid workspaceId,
         Guid channelId,
-        Guid messageId,
-        CancellationToken cancellationToken)
+        Guid messageId)
     {
-        var message = await _messageRepository.GetByIdAsync(messageId, cancellationToken);
+        var message = await _messageRepository.GetByIdAsync(messageId);
+
         if (message is null || message.ChannelId != channelId)
         {
             return MessageErrors.NotFound;
@@ -123,26 +127,30 @@ public class MessageService : IMessageService
         }
 
         var isAuthor = message.SenderId == userId;
-        if (!isAuthor)
+
+        if (isAuthor is false)
         {
-            var membership = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+            var membership = await _workspaceMemberRepository.GetAsync(workspaceId, userId);
             var isAdmin = membership is not null && membership.IsAdmin();
-            if (!isAdmin)
+
+            if (isAdmin is false)
             {
                 return MessageErrors.NotAuthorOrAdmin;
             }
         }
 
         message.SoftDelete(userId, DateTime.UtcNow);
-        await _messageRepository.UpdateAsync(message, cancellationToken);
+        await _messageRepository.UpdateAsync(message);
 
-        var response = await _messageQueryService.GetByIdAsync(message.Id, cancellationToken);
+        var response = await _messageQueryService.GetByIdAsync(message.Id);
+
         if (response is null)
         {
             return MessageErrors.NotFound;
         }
 
-        await _messageBroadcastService.BroadcastMessageDeletedAsync(response, cancellationToken);
+        await _messageBroadcastService.BroadcastMessageDeletedAsync(response);
+
         return Result.Success;
     }
 
@@ -150,16 +158,17 @@ public class MessageService : IMessageService
         Guid userId,
         Guid channelId,
         DateTime? beforeUtc,
-        int pageSize,
-        CancellationToken cancellationToken)
+        int pageSize)
     {
-        var accessResult = await _channelService.CanUserAccessChannelAsync(channelId, userId, cancellationToken);
+        var accessResult = await _channelService.CanUserAccessChannelAsync(channelId, userId);
+
         if (accessResult.IsError)
         {
             return accessResult.Errors;
         }
 
         var effectivePageSize = pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
-        return await _messageQueryService.GetChannelHistoryAsync(channelId, beforeUtc, effectivePageSize, cancellationToken);
+
+        return await _messageQueryService.GetChannelHistoryAsync(channelId, beforeUtc, effectivePageSize);
     }
 }

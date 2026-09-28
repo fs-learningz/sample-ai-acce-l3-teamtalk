@@ -24,44 +24,47 @@ public class WorkspaceMemberService : IWorkspaceMemberService
 
     public async Task<ErrorOr<IReadOnlyList<WorkspaceMemberResponse>>> GetForWorkspaceAsync(
         Guid userId,
-        Guid workspaceId,
-        CancellationToken cancellationToken)
+        Guid workspaceId)
     {
-        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+
         if (workspace is null)
         {
             return WorkspaceErrors.NotFound;
         }
 
-        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId);
+
         if (member is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        var members = await _workspaceMemberQueryService.GetForWorkspaceAsync(workspaceId, cancellationToken);
+        var members = await _workspaceMemberQueryService.GetForWorkspaceAsync(workspaceId);
+
         return members.ToList();
     }
 
     public async Task<ErrorOr<Success>> RemoveAsync(
         Guid adminUserId,
         Guid workspaceId,
-        Guid memberUserId,
-        CancellationToken cancellationToken)
+        Guid memberUserId)
     {
-        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+
         if (workspace is null)
         {
             return WorkspaceErrors.NotFound;
         }
 
-        var admin = await _workspaceMemberRepository.GetAsync(workspaceId, adminUserId, cancellationToken);
+        var admin = await _workspaceMemberRepository.GetAsync(workspaceId, adminUserId);
+
         if (admin is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        if (!admin.IsAdmin())
+        if (admin.IsAdmin() is false)
         {
             return WorkspaceErrors.NotAnAdmin;
         }
@@ -71,33 +74,37 @@ public class WorkspaceMemberService : IWorkspaceMemberService
             return WorkspaceErrors.CannotRemoveSelf;
         }
 
-        var target = await _workspaceMemberRepository.GetAsync(workspaceId, memberUserId, cancellationToken);
+        var target = await _workspaceMemberRepository.GetAsync(workspaceId, memberUserId);
+
         if (target is null)
         {
             return WorkspaceErrors.MemberNotFound;
         }
 
-        await _workspaceMemberRepository.RemoveAsync(workspaceId, memberUserId, cancellationToken);
+        await _workspaceMemberRepository.RemoveAsync(workspaceId, memberUserId);
 
         return Result.Success;
     }
 
-    public async Task<ErrorOr<Success>> LeaveAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> LeaveAsync(Guid userId, Guid workspaceId)
     {
-        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+
         if (workspace is null)
         {
             return WorkspaceErrors.NotFound;
         }
 
-        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId, cancellationToken);
+        var member = await _workspaceMemberRepository.GetAsync(workspaceId, userId);
+
         if (member is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        var left = await _workspaceMemberRepository.TryLeaveAsync(workspaceId, userId, cancellationToken);
-        if (!left)
+        var left = await _workspaceMemberRepository.TryLeaveAsync(workspaceId, userId);
+
+        if (left is false)
         {
             return WorkspaceErrors.LastAdmin;
         }
@@ -109,34 +116,37 @@ public class WorkspaceMemberService : IWorkspaceMemberService
         Guid adminUserId,
         Guid workspaceId,
         Guid memberUserId,
-        ChangeMemberRoleRequest request,
-        CancellationToken cancellationToken)
+        ChangeMemberRoleRequest request)
     {
-        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
+        var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+
         if (workspace is null)
         {
             return WorkspaceErrors.NotFound;
         }
 
-        var admin = await _workspaceMemberRepository.GetAsync(workspaceId, adminUserId, cancellationToken);
+        var admin = await _workspaceMemberRepository.GetAsync(workspaceId, adminUserId);
+
         if (admin is null)
         {
             return WorkspaceErrors.NotAMember;
         }
 
-        if (!admin.IsAdmin())
+        if (admin.IsAdmin() is false)
         {
             return WorkspaceErrors.NotAnAdmin;
         }
 
-        var target = await _workspaceMemberRepository.GetAsync(workspaceId, memberUserId, cancellationToken);
+        var target = await _workspaceMemberRepository.GetAsync(workspaceId, memberUserId);
+
         if (target is null)
         {
             return WorkspaceErrors.MemberNotFound;
         }
 
-        var changed = await _workspaceMemberRepository.TrySetRoleAsync(workspaceId, memberUserId, request.Role, cancellationToken);
-        if (!changed)
+        var changed = await _workspaceMemberRepository.TrySetRoleAsync(workspaceId, memberUserId, request.Role);
+
+        if (changed is false)
         {
             return WorkspaceErrors.LastAdmin;
         }

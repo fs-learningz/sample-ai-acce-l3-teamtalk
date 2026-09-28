@@ -154,6 +154,7 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
         createResponse.EnsureSuccessStatusCode();
         var workspace = await createResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
         Assert.NotNull(workspace);
+
         return workspace!;
     }
 
