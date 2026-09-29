@@ -373,4 +373,126 @@ public class WorkspaceMemberServiceTests
         await _workspaceMemberRepository.Received(1)
             .TrySetRoleAsync(workspace.Id, targetId, WorkspaceRole.Admin);
     }
+
+    [Fact]
+    public async Task LeaveAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
+    {
+        // arrange
+        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
+
+        // act
+        var result = await _sut.LeaveAsync(Guid.NewGuid(), Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_WhenActorIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspace = CreateWorkspace(Guid.NewGuid());
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
+
+        // act
+        var result = await _sut.RemoveAsync(Guid.NewGuid(), workspace.Id, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+        await _workspaceMemberRepository.DidNotReceive().RemoveAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task ChangeRoleAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
+    {
+        // arrange
+        _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
+
+        // act
+        var request = new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin };
+        var result = await _sut.ChangeRoleAsync(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), request);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task ChangeRoleAsync_WhenActorIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspace = CreateWorkspace(Guid.NewGuid());
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
+
+        // act
+        var request = new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin };
+        var result = await _sut.ChangeRoleAsync(Guid.NewGuid(), workspace.Id, Guid.NewGuid(), request);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+    }
+
+    [Fact]
+    public async Task ChangeRoleAsync_WhenPromotingMemberToAdmin_SetsRoleThroughRepository()
+    {
+        // arrange
+        var adminId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var workspace = CreateWorkspace(adminId);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(CreateMember(workspace.Id, adminId, WorkspaceRole.Admin));
+        _workspaceMemberRepository.GetAsync(workspace.Id, memberId).Returns(CreateMember(workspace.Id, memberId));
+        _workspaceMemberRepository.TrySetRoleAsync(workspace.Id, memberId, WorkspaceRole.Admin).Returns(true);
+
+        // act
+        var request = new ChangeMemberRoleRequest { Role = WorkspaceRole.Admin };
+        var result = await _sut.ChangeRoleAsync(adminId, workspace.Id, memberId, request);
+
+        // assert
+        Assert.False(result.IsError);
+        await _workspaceMemberRepository.Received(1).TrySetRoleAsync(workspace.Id, memberId, WorkspaceRole.Admin);
+    }
+
+    [Fact]
+    public async Task ChangeRoleAsync_WhenDemotingAdminWhileAnotherAdminExists_Succeeds()
+    {
+        // arrange
+        var adminId = Guid.NewGuid();
+        var otherAdminId = Guid.NewGuid();
+        var workspace = CreateWorkspace(adminId);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(CreateMember(workspace.Id, adminId, WorkspaceRole.Admin));
+        _workspaceMemberRepository.GetAsync(workspace.Id, otherAdminId).Returns(CreateMember(workspace.Id, otherAdminId, WorkspaceRole.Admin));
+        _workspaceMemberRepository.TrySetRoleAsync(workspace.Id, otherAdminId, WorkspaceRole.Member).Returns(true);
+
+        // act
+        var request = new ChangeMemberRoleRequest { Role = WorkspaceRole.Member };
+        var result = await _sut.ChangeRoleAsync(adminId, workspace.Id, otherAdminId, request);
+
+        // assert
+        Assert.False(result.IsError);
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WhenAdminLeavesWhileAnotherAdminExists_Succeeds()
+    {
+        // arrange
+        var adminId = Guid.NewGuid();
+        var workspace = CreateWorkspace(adminId);
+        _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
+        _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(CreateMember(workspace.Id, adminId, WorkspaceRole.Admin));
+        _workspaceMemberRepository.TryLeaveAsync(workspace.Id, adminId).Returns(true);
+
+        // act
+        var result = await _sut.LeaveAsync(adminId, workspace.Id);
+
+        // assert
+        Assert.False(result.IsError);
+        await _workspaceMemberRepository.Received(1).TryLeaveAsync(workspace.Id, adminId);
+    }
 }
