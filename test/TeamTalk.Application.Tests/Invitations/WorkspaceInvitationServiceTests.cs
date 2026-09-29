@@ -38,6 +38,7 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task InviteAsync_WhenInviterIsNotAdmin_ReturnsForbidden()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var inviterId = Guid.NewGuid();
         var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, inviterId, WorkspaceRole.Member, DateTime.UtcNow);
@@ -45,8 +46,10 @@ public class WorkspaceInvitationServiceTests
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, inviterId).Returns(member);
 
+        // act
         var result = await _sut.InviteAsync(inviterId, workspace.Id, new InviteMemberRequest { Email = "new@example.com" });
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
     }
@@ -54,6 +57,7 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task InviteAsync_WhenTargetAlreadyAMember_ReturnsConflict()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var inviterId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, inviterId, WorkspaceRole.Admin, DateTime.UtcNow);
@@ -64,8 +68,10 @@ public class WorkspaceInvitationServiceTests
         _identityService.FindUserIdByEmailAsync("existing@example.com").Returns(existingUserId);
         _workspaceMemberRepository.IsMemberAsync(workspace.Id, existingUserId).Returns(true);
 
+        // act
         var result = await _sut.InviteAsync(inviterId, workspace.Id, new InviteMemberRequest { Email = "existing@example.com" });
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(InvitationErrors.AlreadyAMember, result.FirstError);
     }
@@ -73,6 +79,7 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task InviteAsync_WhenPendingInvitationAlreadyExists_ReturnsConflict()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var inviterId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, inviterId, WorkspaceRole.Admin, DateTime.UtcNow);
@@ -83,8 +90,10 @@ public class WorkspaceInvitationServiceTests
         _identityService.FindUserIdByEmailAsync("new@example.com").Returns((Guid?)null);
         _invitationRepository.GetPendingByWorkspaceAndEmailAsync(workspace.Id, "new@example.com").Returns(existingInvitation);
 
+        // act
         var result = await _sut.InviteAsync(inviterId, workspace.Id, new InviteMemberRequest { Email = "new@example.com" });
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(InvitationErrors.AlreadyPending, result.FirstError);
     }
@@ -92,6 +101,7 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task InviteAsync_WithValidRequest_CreatesInvitationAndSendsEmail()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var inviterId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, inviterId, WorkspaceRole.Admin, DateTime.UtcNow);
@@ -101,8 +111,10 @@ public class WorkspaceInvitationServiceTests
         _identityService.FindUserIdByEmailAsync("new@example.com").Returns((Guid?)null);
         _invitationRepository.GetPendingByWorkspaceAndEmailAsync(workspace.Id, "new@example.com").Returns((WorkspaceInvitation?)null);
 
+        // act
         var result = await _sut.InviteAsync(inviterId, workspace.Id, new InviteMemberRequest { Email = "New@Example.com", Role = WorkspaceRole.Admin });
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal("new@example.com", result.Value.Email);
         Assert.Equal(WorkspaceRole.Admin, result.Value.Role);
@@ -114,6 +126,7 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task GetPendingForCurrentUserAsync_IncludesWorkspaceHasIcon()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         workspace.SetIcon([1, 2, 3], "image/png", DateTime.UtcNow);
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspace.Id, "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
@@ -122,8 +135,10 @@ public class WorkspaceInvitationServiceTests
             .Returns(new List<WorkspaceInvitation> { invitation });
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
 
+        // act
         var result = await _sut.GetPendingForCurrentUserAsync(Guid.NewGuid(), "invitee@example.com");
 
+        // assert
         Assert.False(result.IsError);
         Assert.Single(result.Value);
         Assert.True(result.Value[0].WorkspaceHasIcon);
@@ -132,14 +147,17 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task GetPendingForCurrentUserAsync_WhenWorkspaceIsMissing_ReturnsHasIconFalse()
     {
+        // arrange
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
 
         _invitationRepository.GetPendingForEmailAsync("invitee@example.com")
             .Returns(new List<WorkspaceInvitation> { invitation });
         _workspaceRepository.GetByIdAsync(invitation.WorkspaceId).Returns((Workspace?)null);
 
+        // act
         var result = await _sut.GetPendingForCurrentUserAsync(Guid.NewGuid(), "invitee@example.com");
 
+        // assert
         Assert.False(result.IsError);
         Assert.False(result.Value[0].WorkspaceHasIcon);
         Assert.Equal("Unknown workspace", result.Value[0].WorkspaceName);
@@ -148,11 +166,14 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task GetWorkspaceIconAsync_WhenEmailDoesNotMatch_ReturnsNotFound()
     {
+        // arrange
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
 
+        // act
         var result = await _sut.GetWorkspaceIconAsync("someoneelse@example.com", invitation.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(InvitationErrors.NotFound, result.FirstError);
     }
@@ -160,13 +181,16 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task GetWorkspaceIconAsync_WhenWorkspaceHasNoIcon_ReturnsNotFound()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspace.Id, "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
 
+        // act
         var result = await _sut.GetWorkspaceIconAsync("invitee@example.com", invitation.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.IconNotFound, result.FirstError);
     }
@@ -174,14 +198,17 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task GetWorkspaceIconAsync_WhenValid_ReturnsIconBytes()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         workspace.SetIcon([9, 9, 9], "image/png", DateTime.UtcNow);
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspace.Id, "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
 
+        // act
         var result = await _sut.GetWorkspaceIconAsync("invitee@example.com", invitation.Id);
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal("image/png", result.Value.ContentType);
         Assert.Equal(new byte[] { 9, 9, 9 }, result.Value.Data);
@@ -190,11 +217,14 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task AcceptAsync_WhenEmailDoesNotMatch_ReturnsNotFound()
     {
+        // arrange
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
 
+        // act
         var result = await _sut.AcceptAsync(Guid.NewGuid(), "someoneelse@example.com", invitation.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(InvitationErrors.NotFound, result.FirstError);
     }
@@ -202,14 +232,17 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task AcceptAsync_WhenPendingAndEmailMatches_AddsWorkspaceMemberWithInvitedRole()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), workspaceId, "invitee@example.com", WorkspaceRole.Admin, Guid.NewGuid(), DateTime.UtcNow);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
         _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(false);
 
+        // act
         var result = await _sut.AcceptAsync(userId, "invitee@example.com", invitation.Id);
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal(InvitationStatus.Accepted, invitation.Status);
         await _invitationRepository.Received(1).UpdateAsync(invitation);
@@ -220,12 +253,15 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task AcceptAsync_WhenAlreadyResponded_ReturnsConflict()
     {
+        // arrange
         var invitation = new WorkspaceInvitation(Guid.NewGuid(), Guid.NewGuid(), "invitee@example.com", WorkspaceRole.Member, Guid.NewGuid(), DateTime.UtcNow);
         invitation.Decline(DateTime.UtcNow);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
 
+        // act
         var result = await _sut.AcceptAsync(Guid.NewGuid(), "invitee@example.com", invitation.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(InvitationErrors.NotPending, result.FirstError);
     }
@@ -233,13 +269,16 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task RevokeAsync_WhenNotAdmin_ReturnsForbidden()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var member = new WorkspaceMember(Guid.NewGuid(), workspaceId, userId, WorkspaceRole.Member, DateTime.UtcNow);
         _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns(member);
 
+        // act
         var result = await _sut.RevokeAsync(userId, workspaceId, Guid.NewGuid());
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
     }
@@ -247,6 +286,7 @@ public class WorkspaceInvitationServiceTests
     [Fact]
     public async Task RevokeAsync_WhenPendingAndOwnedByWorkspace_RevokesInvitation()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspaceId, userId, WorkspaceRole.Admin, DateTime.UtcNow);
@@ -254,8 +294,10 @@ public class WorkspaceInvitationServiceTests
         _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns(admin);
         _invitationRepository.GetByIdAsync(invitation.Id).Returns(invitation);
 
+        // act
         var result = await _sut.RevokeAsync(userId, workspaceId, invitation.Id);
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal(InvitationStatus.Revoked, invitation.Status);
         await _invitationRepository.Received(1).UpdateAsync(invitation);

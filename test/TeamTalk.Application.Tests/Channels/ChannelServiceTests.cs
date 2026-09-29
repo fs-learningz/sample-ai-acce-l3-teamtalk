@@ -26,11 +26,14 @@ public class ChannelServiceTests
     [Fact]
     public async Task CreateAsync_WhenUserIsNotWorkspaceMember_ReturnsForbidden()
     {
+        // arrange
         _workspaceMemberRepository.IsMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(false);
 
+        // act
         var request = new CreateChannelRequest { Name = "general", Type = ChannelType.Public };
         var result = await _sut.CreateAsync(Guid.NewGuid(), Guid.NewGuid(), request);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
     }
@@ -38,12 +41,15 @@ public class ChannelServiceTests
     [Fact]
     public async Task CreateAsync_WhenNameAlreadyExists_ReturnsConflict()
     {
+        // arrange
         _workspaceMemberRepository.IsMemberAsync(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(true);
         _channelRepository.NameExistsInWorkspaceAsync(Arg.Any<Guid>(), "general").Returns(true);
 
+        // act
         var request = new CreateChannelRequest { Name = "general", Type = ChannelType.Public };
         var result = await _sut.CreateAsync(Guid.NewGuid(), Guid.NewGuid(), request);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(ChannelErrors.NameAlreadyExists, result.FirstError);
     }
@@ -51,6 +57,7 @@ public class ChannelServiceTests
     [Fact]
     public async Task EnsureCanPostAsync_ForPublicChannelUserHasNotJoined_AutoJoinsAndSucceeds()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
@@ -58,8 +65,10 @@ public class ChannelServiceTests
         _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
         _channelMemberRepository.IsMemberAsync(channel.Id, userId).Returns(false);
 
+        // act
         var result = await _sut.EnsureCanPostAsync(channel.Id, userId);
 
+        // assert
         Assert.False(result.IsError);
         await _channelMemberRepository.Received(1).AddAsync(
             Arg.Is<ChannelMember>(m => m.ChannelId == channel.Id && m.UserId == userId));
@@ -68,12 +77,15 @@ public class ChannelServiceTests
     [Fact]
     public async Task CanUserAccessChannelAsync_ForPrivateChannelNonMember_ReturnsForbidden()
     {
+        // arrange
         var channel = new Channel(Guid.NewGuid(), Guid.NewGuid(), "secret", ChannelType.Private, Guid.NewGuid(), DateTime.UtcNow);
         _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
         _channelMemberRepository.IsMemberAsync(channel.Id, Arg.Any<Guid>()).Returns(false);
 
+        // act
         var result = await _sut.CanUserAccessChannelAsync(channel.Id, Guid.NewGuid());
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(ChannelErrors.NotVisible, result.FirstError);
     }

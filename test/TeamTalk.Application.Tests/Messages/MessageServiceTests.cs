@@ -52,6 +52,7 @@ public class MessageServiceTests
     [Fact]
     public async Task SendAsync_WhenUserCanPost_PersistsAndBroadcasts()
     {
+        // arrange
         var channelId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         _channelService.EnsureCanPostAsync(channelId, userId).Returns(Result.Success);
@@ -61,9 +62,11 @@ public class MessageServiceTests
             .GetByIdAsync(Arg.Any<Guid>())
             .Returns(BuildResponse(messageId, channelId, userId));
 
+        // act
         var request = new SendMessageRequest { Content = "hello" };
         var result = await _sut.SendAsync(userId, channelId, request);
 
+        // assert
         Assert.False(result.IsError);
         await _messageRepository.Received(1).AddAsync(Arg.Any<Message>());
         await _messageBroadcastService.Received(1).BroadcastMessageSentAsync(Arg.Any<MessageResponse>());
@@ -72,13 +75,16 @@ public class MessageServiceTests
     [Fact]
     public async Task SendAsync_WhenUserCannotAccessChannel_ReturnsError()
     {
+        // arrange
         var channelId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         _channelService.EnsureCanPostAsync(channelId, userId).Returns(ChannelErrors.NotVisible);
 
+        // act
         var request = new SendMessageRequest { Content = "hello" };
         var result = await _sut.SendAsync(userId, channelId, request);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(ChannelErrors.NotVisible, result.FirstError);
         await _messageRepository.DidNotReceive().AddAsync(Arg.Any<Message>());
@@ -87,14 +93,17 @@ public class MessageServiceTests
     [Fact]
     public async Task EditAsync_WhenUserIsNotAuthor_ReturnsForbidden()
     {
+        // arrange
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
         var message = new Message(Guid.NewGuid(), channelId, authorId, "original", DateTime.UtcNow);
         _messageRepository.GetByIdAsync(message.Id).Returns(message);
 
+        // act
         var request = new EditMessageRequest { Content = "updated" };
         var result = await _sut.EditAsync(Guid.NewGuid(), channelId, message.Id, request);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(MessageErrors.NotAuthor, result.FirstError);
     }
@@ -102,6 +111,7 @@ public class MessageServiceTests
     [Fact]
     public async Task DeleteAsync_WhenUserIsAuthor_Succeeds()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
@@ -111,8 +121,10 @@ public class MessageServiceTests
             .GetByIdAsync(message.Id)
             .Returns(BuildResponse(message.Id, channelId, authorId, isDeleted: true));
 
+        // act
         var result = await _sut.DeleteAsync(authorId, workspaceId, channelId, message.Id);
 
+        // assert
         Assert.False(result.IsError);
         await _messageRepository.Received(1).UpdateAsync(Arg.Is<Message>(m => m.IsDeleted));
     }
@@ -120,6 +132,7 @@ public class MessageServiceTests
     [Fact]
     public async Task DeleteAsync_WhenAlreadyDeleted_ReturnsValidationError()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
@@ -127,8 +140,10 @@ public class MessageServiceTests
         message.SoftDelete(authorId, DateTime.UtcNow);
         _messageRepository.GetByIdAsync(message.Id).Returns(message);
 
+        // act
         var result = await _sut.DeleteAsync(authorId, workspaceId, channelId, message.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(MessageErrors.AlreadyDeleted, result.FirstError);
     }
@@ -136,6 +151,7 @@ public class MessageServiceTests
     [Fact]
     public async Task DeleteAsync_WhenNonAuthorIsWorkspaceAdmin_Succeeds()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
@@ -148,14 +164,17 @@ public class MessageServiceTests
             .GetByIdAsync(message.Id)
             .Returns(BuildResponse(message.Id, channelId, authorId, isDeleted: true));
 
+        // act
         var result = await _sut.DeleteAsync(adminId, workspaceId, channelId, message.Id);
 
+        // assert
         Assert.False(result.IsError);
     }
 
     [Fact]
     public async Task DeleteAsync_WhenNonAuthorIsNotAdmin_ReturnsForbidden()
     {
+        // arrange
         var workspaceId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
@@ -165,8 +184,10 @@ public class MessageServiceTests
         var memberMembership = new WorkspaceMember(Guid.NewGuid(), workspaceId, otherUserId, WorkspaceRole.Member, DateTime.UtcNow);
         _workspaceMemberRepository.GetAsync(workspaceId, otherUserId).Returns(memberMembership);
 
+        // act
         var result = await _sut.DeleteAsync(otherUserId, workspaceId, channelId, message.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(MessageErrors.NotAuthorOrAdmin, result.FirstError);
     }

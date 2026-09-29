@@ -17,6 +17,7 @@ public class MessagingFlowTests : IClassFixture<ApiWebApplicationFactory>
     [Fact]
     public async Task FullFlow_RegisterCreateWorkspaceCreateChannelSendEditDeleteMessage_Succeeds()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var client = _factory.CreateClient();
         var email = $"user-{Guid.NewGuid():N}@example.com";
@@ -47,6 +48,7 @@ public class MessagingFlowTests : IClassFixture<ApiWebApplicationFactory>
         var channel = await createChannelResponse.Content.ReadFromJsonAsync<ChannelDto>(cancellationToken);
         Assert.NotNull(channel);
 
+        // act
         var sendResponse = await client.PostAsJsonAsync(
             $"/api/workspaces/{workspace.Id}/channels/{channel!.Id}/messages",
             new SendMessageRequestDto { Content = "hello team" },
@@ -71,6 +73,7 @@ public class MessagingFlowTests : IClassFixture<ApiWebApplicationFactory>
             cancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
+        // assert
         var historyResponse = await client.GetAsync(
             $"/api/workspaces/{workspace.Id}/channels/{channel.Id}/messages?pageSize=10",
             cancellationToken);

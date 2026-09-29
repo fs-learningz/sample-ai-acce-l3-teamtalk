@@ -28,11 +28,14 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task CreateAsync_WithValidName_CreatesWorkspaceAndAdminMember()
     {
+        // arrange
         var userId = Guid.NewGuid();
         var request = new CreateWorkspaceRequest { Name = "Engineering" };
 
+        // act
         var result = await _sut.CreateAsync(userId, request);
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal("Engineering", result.Value.Name);
         Assert.Equal(userId, result.Value.CreatedByUserId);
@@ -44,10 +47,13 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task GetByIdAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
     {
+        // arrange
         _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
 
+        // act
         var result = await _sut.GetByIdAsync(Guid.NewGuid(), Guid.NewGuid());
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
     }
@@ -55,12 +61,15 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task GetByIdAsync_WhenUserIsNotMember_ReturnsForbidden()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
 
+        // act
         var result = await _sut.GetByIdAsync(Guid.NewGuid(), workspace.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
     }
@@ -68,6 +77,7 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task GetByIdAsync_WhenUserIsMember_ReturnsCurrentUserRoleAndSummary()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var userId = Guid.NewGuid();
         var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, userId, WorkspaceRole.Admin, DateTime.UtcNow);
@@ -76,8 +86,10 @@ public class WorkspaceServiceTests
         _workspaceQueryService.GetSummaryAsync(workspace.Id)
             .Returns(new WorkspaceSummary("Creator", "creator@example.com", 3));
 
+        // act
         var result = await _sut.GetByIdAsync(userId, workspace.Id);
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal(WorkspaceRole.Admin, result.Value.CurrentUserRole);
         Assert.Equal("Creator", result.Value.CreatedByDisplayName);
@@ -87,17 +99,20 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task UpdateAsync_WhenUserIsNotAdmin_ReturnsForbidden()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var memberId = Guid.NewGuid();
         var member = new WorkspaceMember(Guid.NewGuid(), workspace.Id, memberId, WorkspaceRole.Member, DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, memberId).Returns(member);
 
+        // act
         var result = await _sut.UpdateAsync(
             memberId,
             workspace.Id,
             new UpdateWorkspaceRequest { Name = "New name" });
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
     }
@@ -105,17 +120,20 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task UpdateAsync_WhenNameExceedsMaxLength_ReturnsValidationError()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
+        // act
         var result = await _sut.UpdateAsync(
             adminId,
             workspace.Id,
             new UpdateWorkspaceRequest { Name = new string('a', Workspace.MaxNameLength + 1) });
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal("Workspace.NameTooLong", result.FirstError.Code);
     }
@@ -123,17 +141,20 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task UpdateAsync_WhenValid_UpdatesNameAndDescription()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
+        // act
         var result = await _sut.UpdateAsync(
             adminId,
             workspace.Id,
             new UpdateWorkspaceRequest { Name = "Renamed", Description = "New description" });
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal("Renamed", result.Value.Name);
         Assert.Equal("New description", result.Value.Description);
@@ -143,6 +164,7 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task UpdateIconAsync_WhenIconTooLarge_ReturnsValidationError()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
@@ -151,8 +173,10 @@ public class WorkspaceServiceTests
 
         var oversizedIcon = new byte[2 * 1024 * 1024 + 1];
 
+        // act
         var result = await _sut.UpdateIconAsync(adminId, workspace.Id, oversizedIcon, "image/png");
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.IconTooLarge, result.FirstError);
     }
@@ -160,14 +184,17 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task UpdateIconAsync_WhenContentTypeUnsupported_ReturnsValidationError()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
+        // act
         var result = await _sut.UpdateIconAsync(adminId, workspace.Id, [1, 2, 3], "image/gif");
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.UnsupportedIconFormat, result.FirstError);
     }
@@ -175,14 +202,17 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task UpdateIconAsync_WhenValid_SetsIcon()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var adminId = Guid.NewGuid();
         var admin = new WorkspaceMember(Guid.NewGuid(), workspace.Id, adminId, WorkspaceRole.Admin, DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
+        // act
         var result = await _sut.UpdateIconAsync(adminId, workspace.Id, [1, 2, 3], "image/png");
 
+        // assert
         Assert.False(result.IsError);
         Assert.True(result.Value.HasIcon);
         await _workspaceRepository.Received(1).UpdateAsync(workspace);
@@ -191,13 +221,16 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task GetIconAsync_WhenWorkspaceHasNoIcon_ReturnsNotFound()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         var userId = Guid.NewGuid();
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.IsMemberAsync(workspace.Id, userId).Returns(true);
 
+        // act
         var result = await _sut.GetIconAsync(userId, workspace.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.IconNotFound, result.FirstError);
     }
@@ -205,10 +238,13 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task DeleteAsync_WhenWorkspaceDoesNotExist_ReturnsNotFound()
     {
+        // arrange
         _workspaceRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Workspace?)null);
 
+        // act
         var result = await _sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotFound, result.FirstError);
     }
@@ -216,12 +252,15 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task DeleteAsync_WhenUserIsNotMember_ReturnsForbidden()
     {
+        // arrange
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", Guid.NewGuid(), DateTime.UtcNow);
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, Arg.Any<Guid>()).Returns((WorkspaceMember?)null);
 
+        // act
         var result = await _sut.DeleteAsync(Guid.NewGuid(), workspace.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
     }
@@ -229,6 +268,7 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task DeleteAsync_WhenUserIsMemberNotAdmin_ReturnsForbidden()
     {
+        // arrange
         var creatorId = Guid.NewGuid();
         var memberId = Guid.NewGuid();
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", creatorId, DateTime.UtcNow);
@@ -236,8 +276,10 @@ public class WorkspaceServiceTests
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, memberId).Returns(member);
 
+        // act
         var result = await _sut.DeleteAsync(memberId, workspace.Id);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
         await _workspaceRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>());
@@ -246,6 +288,7 @@ public class WorkspaceServiceTests
     [Fact]
     public async Task DeleteAsync_WhenUserIsAdminButNotCreator_DeletesWorkspace()
     {
+        // arrange
         var creatorId = Guid.NewGuid();
         var adminId = Guid.NewGuid();
         var workspace = new Workspace(Guid.NewGuid(), "Engineering", creatorId, DateTime.UtcNow);
@@ -253,8 +296,10 @@ public class WorkspaceServiceTests
         _workspaceRepository.GetByIdAsync(workspace.Id).Returns(workspace);
         _workspaceMemberRepository.GetAsync(workspace.Id, adminId).Returns(admin);
 
+        // act
         var result = await _sut.DeleteAsync(adminId, workspace.Id);
 
+        // assert
         Assert.False(result.IsError);
         await _workspaceRepository.Received(1).DeleteAsync(workspace.Id);
     }
