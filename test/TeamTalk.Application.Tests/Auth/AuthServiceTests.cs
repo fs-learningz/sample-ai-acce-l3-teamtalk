@@ -24,6 +24,7 @@ public class AuthServiceTests
     [Fact]
     public async Task RegisterAsync_WhenIdentityServiceSucceeds_ReturnsAuthResponseWithToken()
     {
+        // arrange
         var userId = Guid.NewGuid();
         var identityResult = new IdentityUserResult
         {
@@ -38,9 +39,11 @@ public class AuthServiceTests
             .GenerateToken(userId, "alice@example.com", "Alice")
             .Returns("fake-jwt-token");
 
+        // act
         var request = new RegisterRequest { Email = "alice@example.com", DisplayName = "Alice", Password = "Passw0rd!" };
         var result = await _sut.RegisterAsync(request);
 
+        // assert
         Assert.False(result.IsError);
         Assert.Equal(userId, result.Value.UserId);
         Assert.Equal("fake-jwt-token", result.Value.Token);
@@ -49,13 +52,16 @@ public class AuthServiceTests
     [Fact]
     public async Task RegisterAsync_WhenIdentityServiceFails_PropagatesError()
     {
+        // arrange
         _identityService
             .RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(AuthErrors.EmailAlreadyExists);
 
+        // act
         var request = new RegisterRequest { Email = "alice@example.com", DisplayName = "Alice", Password = "Passw0rd!" };
         var result = await _sut.RegisterAsync(request);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(AuthErrors.EmailAlreadyExists, result.FirstError);
     }
@@ -63,14 +69,89 @@ public class AuthServiceTests
     [Fact]
     public async Task LoginAsync_WhenCredentialsInvalid_ReturnsUnauthorizedError()
     {
+        // arrange
         _identityService
             .ValidateCredentialsAsync(Arg.Any<string>(), Arg.Any<string>())
             .Returns(AuthErrors.InvalidCredentials);
 
+        // act
         var request = new LoginRequest { Email = "alice@example.com", Password = "wrong" };
         var result = await _sut.LoginAsync(request);
 
+        // assert
         Assert.True(result.IsError);
         Assert.Equal(ErrorType.Unauthorized, result.FirstError.Type);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenCredentialsValid_ReturnsAuthResponseWithToken()
+    {
+        // arrange
+        var userId = Guid.NewGuid();
+        _identityService
+            .ValidateCredentialsAsync("alice@example.com", "Passw0rd!")
+            .Returns(new IdentityUserResult { UserId = userId, Email = "alice@example.com", DisplayName = "Alice" });
+        _jwtTokenGenerator
+            .GenerateToken(userId, "alice@example.com", "Alice")
+            .Returns("login-jwt-token");
+
+        // act
+        var request = new LoginRequest { Email = "alice@example.com", Password = "Passw0rd!" };
+        var result = await _sut.LoginAsync(request);
+
+        // assert
+        Assert.False(result.IsError);
+        Assert.Equal(userId, result.Value.UserId);
+        Assert.Equal("alice@example.com", result.Value.Email);
+        Assert.Equal("Alice", result.Value.DisplayName);
+        Assert.Equal("login-jwt-token", result.Value.Token);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenCredentialsInvalid_DoesNotGenerateToken()
+    {
+        // arrange
+        _identityService
+            .ValidateCredentialsAsync(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(AuthErrors.InvalidCredentials);
+
+        // act
+        var request = new LoginRequest { Email = "alice@example.com", Password = "wrong" };
+        await _sut.LoginAsync(request);
+
+        // assert
+        _jwtTokenGenerator.DidNotReceiveWithAnyArgs().GenerateToken(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WhenIdentityServiceFails_DoesNotGenerateToken()
+    {
+        // arrange
+        _identityService
+            .RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(AuthErrors.EmailAlreadyExists);
+
+        // act
+        var request = new RegisterRequest { Email = "alice@example.com", DisplayName = "Alice", Password = "Passw0rd!" };
+        await _sut.RegisterAsync(request);
+
+        // assert
+        _jwtTokenGenerator.DidNotReceiveWithAnyArgs().GenerateToken(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_PassesRequestFieldsToIdentityService()
+    {
+        // arrange
+        _identityService
+            .RegisterAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(new IdentityUserResult { UserId = Guid.NewGuid(), Email = "alice@example.com", DisplayName = "Alice" });
+
+        // act
+        var request = new RegisterRequest { Email = "alice@example.com", DisplayName = "Alice", Password = "Passw0rd!" };
+        await _sut.RegisterAsync(request);
+
+        // assert
+        await _identityService.Received(1).RegisterAsync("alice@example.com", "Alice", "Passw0rd!");
     }
 }

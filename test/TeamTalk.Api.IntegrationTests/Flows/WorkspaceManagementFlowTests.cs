@@ -17,6 +17,7 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
     [Fact]
     public async Task FullFlow_RemoveMemberThenReInviteThenLeaveThenDeleteWorkspace_Succeeds()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         var memberClient = _factory.CreateClient();
@@ -62,9 +63,11 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         Assert.NotNull(membersAfterLeave);
         Assert.Single(membersAfterLeave!);
 
+        // act
         var deleteWorkspaceResponse = await ownerClient.DeleteAsync($"/api/workspaces/{workspace.Id}", cancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, deleteWorkspaceResponse.StatusCode);
 
+        // assert
         var getDeletedWorkspaceResponse = await ownerClient.GetAsync($"/api/workspaces/{workspace.Id}", cancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, getDeletedWorkspaceResponse.StatusCode);
     }
@@ -72,6 +75,7 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
     [Fact]
     public async Task DeleteAsync_WhenCallerIsAdminButNotCreator_Succeeds()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         var adminClient = _factory.CreateClient();
@@ -87,8 +91,10 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         var workspace = await createWorkspaceResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
         Assert.NotNull(workspace);
 
+        // act
         await InviteAndAcceptAsync(ownerClient, adminClient, workspace!.Id, admin.Email, cancellationToken, role: "Admin");
 
+        // assert
         var deleteResponse = await adminClient.DeleteAsync($"/api/workspaces/{workspace.Id}", cancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
     }
@@ -96,6 +102,7 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
     [Fact]
     public async Task DeleteAsync_WhenCallerIsMemberNotAdmin_ReturnsForbidden()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         var memberClient = _factory.CreateClient();
@@ -111,8 +118,10 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         var workspace = await createWorkspaceResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
         Assert.NotNull(workspace);
 
+        // act
         await InviteAndAcceptAsync(ownerClient, memberClient, workspace!.Id, member.Email, cancellationToken);
 
+        // assert
         var deleteResponse = await memberClient.DeleteAsync($"/api/workspaces/{workspace.Id}", cancellationToken);
         Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
     }
@@ -120,10 +129,12 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
     [Fact]
     public async Task LeaveAsync_WhenCallerIsOnlyAdmin_ReturnsConflict()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         await RegisterAsync(ownerClient, cancellationToken);
 
+        // act
         var createWorkspaceResponse = await ownerClient.PostAsJsonAsync(
             "/api/workspaces",
             new CreateWorkspaceRequestDto { Name = "Engineering" },
@@ -132,6 +143,7 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         var workspace = await createWorkspaceResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
         Assert.NotNull(workspace);
 
+        // assert
         var leaveResponse = await ownerClient.PostAsync($"/api/workspaces/{workspace!.Id}/members/leave", null, cancellationToken);
         Assert.Equal(HttpStatusCode.Conflict, leaveResponse.StatusCode);
     }
@@ -139,6 +151,7 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
     [Fact]
     public async Task LeaveAsync_WhenTwoAdminsLeaveConcurrently_OnlyOneSucceeds()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         var adminClient = _factory.CreateClient();
@@ -166,8 +179,10 @@ public class WorkspaceManagementFlowTests : IClassFixture<ApiWebApplicationFacto
         Assert.Single(leaveResponses, r => r.StatusCode == HttpStatusCode.NoContent);
         Assert.Single(leaveResponses, r => r.StatusCode == HttpStatusCode.Conflict);
 
+        // act
         var membersResponse = await ownerClient.GetAsync($"/api/workspaces/{workspace.Id}/members", cancellationToken);
 
+        // assert
         if (membersResponse.StatusCode is HttpStatusCode.OK)
         {
             var members = await membersResponse.Content.ReadFromJsonAsync<List<WorkspaceMemberDto>>(cancellationToken);

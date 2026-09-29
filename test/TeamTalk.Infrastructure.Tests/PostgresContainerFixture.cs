@@ -8,6 +8,14 @@ public class PostgresContainerFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16").Build();
 
+    public string ConnectionString
+    {
+        get
+        {
+            return _container.GetConnectionString(); 
+        }
+    }
+
     public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();

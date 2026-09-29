@@ -16,6 +16,7 @@ public class MessageRepositoryTests
     [Fact]
     public async Task SoftDelete_ThenUpdateAsync_RetainsOriginalContentForAudit()
     {
+        // arrange
         var channelId = Guid.NewGuid();
         var senderId = Guid.NewGuid();
         var message = new Message(Guid.CreateVersion7(), channelId, senderId, "original content", DateTime.UtcNow);
@@ -34,10 +35,12 @@ public class MessageRepositoryTests
             await repository.UpdateAsync(message);
         }
 
+        // act
         await using var readDbContext = _fixture.CreateDbContext();
         var readRepository = new MessageRepository(readDbContext);
         var found = await readRepository.GetByIdAsync(message.Id);
 
+        // assert
         Assert.NotNull(found);
         Assert.True(found!.IsDeleted);
         Assert.Equal("original content", found.Content);
@@ -46,6 +49,7 @@ public class MessageRepositoryTests
     [Fact]
     public async Task GetChannelHistoryAsync_ReturnsMessagesForChannelOnly()
     {
+        // arrange
         var channelId = Guid.NewGuid();
         var otherChannelId = Guid.NewGuid();
         var senderId = Guid.NewGuid();
@@ -59,10 +63,12 @@ public class MessageRepositoryTests
             await repository.AddAsync(otherMessage);
         }
 
+        // act
         await using var readDbContext = _fixture.CreateDbContext();
         var readRepository = new MessageRepository(readDbContext);
         var history = await readRepository.GetChannelHistoryAsync(channelId, null, 50);
 
+        // assert
         Assert.Single(history);
         Assert.Equal(message.Id, history[0].Id);
     }

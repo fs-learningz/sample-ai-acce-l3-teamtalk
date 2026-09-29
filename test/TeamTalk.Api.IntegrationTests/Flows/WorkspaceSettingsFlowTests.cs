@@ -17,18 +17,21 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
     [Fact]
     public async Task UpdateAsync_WhenAdmin_UpdatesNameAndDescription()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var client = _factory.CreateClient();
         await RegisterAsync(client, cancellationToken);
 
         var workspace = await CreateWorkspaceAsync(client, cancellationToken);
 
+        // act
         var updateResponse = await client.PutAsJsonAsync(
             $"/api/workspaces/{workspace.Id}",
             new UpdateWorkspaceRequestDto { Name = "Renamed", Description = "New description" },
             cancellationToken);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
+        // assert
         var updated = await updateResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
         Assert.NotNull(updated);
         Assert.Equal("Renamed", updated!.Name);
@@ -40,6 +43,7 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
     [Fact]
     public async Task UpdateAsync_WhenMember_ReturnsForbidden()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         var memberClient = _factory.CreateClient();
@@ -47,9 +51,11 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
         await RegisterAsync(ownerClient, cancellationToken);
         var member = await RegisterAsync(memberClient, cancellationToken);
 
+        // act
         var workspace = await CreateWorkspaceAsync(ownerClient, cancellationToken);
         await InviteAndAcceptAsync(ownerClient, memberClient, workspace.Id, member.Email, cancellationToken);
 
+        // assert
         var updateResponse = await memberClient.PutAsJsonAsync(
             $"/api/workspaces/{workspace.Id}",
             new UpdateWorkspaceRequestDto { Name = "Renamed", Description = null },
@@ -60,6 +66,7 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
     [Fact]
     public async Task IconLifecycle_UploadFetchAndRemove_Succeeds()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var client = _factory.CreateClient();
         await RegisterAsync(client, cancellationToken);
@@ -84,12 +91,14 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
         var downloadedBytes = await getIconResponse.Content.ReadAsByteArrayAsync(cancellationToken);
         Assert.Equal(iconBytes, downloadedBytes);
 
+        // act
         var removeResponse = await client.DeleteAsync($"/api/workspaces/{workspace.Id}/icon", cancellationToken);
         Assert.Equal(HttpStatusCode.OK, removeResponse.StatusCode);
         var afterRemove = await removeResponse.Content.ReadFromJsonAsync<WorkspaceDto>(cancellationToken);
         Assert.NotNull(afterRemove);
         Assert.False(afterRemove!.HasIcon);
 
+        // assert
         var getIconAfterRemoveResponse = await client.GetAsync($"/api/workspaces/{workspace.Id}/icon", cancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, getIconAfterRemoveResponse.StatusCode);
     }
@@ -97,6 +106,7 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
     [Fact]
     public async Task ChangeRoleAsync_WhenPromotingThenDemoting_LastAdminIsProtected()
     {
+        // arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var ownerClient = _factory.CreateClient();
         var memberClient = _factory.CreateClient();
@@ -113,12 +123,14 @@ public class WorkspaceSettingsFlowTests : IClassFixture<ApiWebApplicationFactory
             cancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
 
+        // act
         var demoteOwnerResponse = await ownerClient.PatchAsJsonAsync(
             $"/api/workspaces/{workspace.Id}/members/{owner.UserId}/role",
             new ChangeMemberRoleRequestDto { Role = "Member" },
             cancellationToken);
         Assert.Equal(HttpStatusCode.NoContent, demoteOwnerResponse.StatusCode);
 
+        // assert
         var demoteLastAdminResponse = await memberClient.PatchAsJsonAsync(
             $"/api/workspaces/{workspace.Id}/members/{member.UserId}/role",
             new ChangeMemberRoleRequestDto { Role = "Member" },

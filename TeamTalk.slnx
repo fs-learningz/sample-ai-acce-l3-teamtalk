@@ -14,8 +14,10 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/TeamTalk.Api.IntegrationTests/TeamTalk.Api.IntegrationTests.csproj" />
+    <Project Path="test/TeamTalk.Api.Tests/TeamTalk.Api.Tests.csproj" />
     <Project Path="test/TeamTalk.Application.Tests/TeamTalk.Application.Tests.csproj" />
     <Project Path="test/TeamTalk.Domain.Tests/TeamTalk.Domain.Tests.csproj" />
+    <Project Path="test/TeamTalk.Hub.Tests/TeamTalk.Hub.Tests.csproj" />
     <Project Path="test/TeamTalk.Infrastructure.Tests/TeamTalk.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>
