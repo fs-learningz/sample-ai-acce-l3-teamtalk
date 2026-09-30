@@ -1,0 +1,44 @@
+<div class="flex max-w-3xl flex-col gap-6">
+  <div class="flex flex-col gap-1">
+    <h2 class="text-lg font-semibold text-base-content">Appearance</h2>
+    <p class="text-sm text-base-content/70">
+      Choose a theme. It is saved to your account and used in every workspace, on any device.
+    </p>
+  </div>
+
+  @if (errorMessage()) {
+    <p class="text-sm text-error">{{ errorMessage() }}</p>
+  }
+
+  @for (group of groups; track group.mode) {
+    <section class="flex flex-col gap-3">
+      <h3 class="text-xs font-semibold uppercase text-base-content/60">{{ group.title }}</h3>
+
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" [attr.aria-label]="group.title">
+        @for (theme of group.themes; track theme.id) {
+          <button
+            type="button"
+            role="radio"
+            class="flex cursor-pointer flex-col gap-2 rounded-box border-2 bg-base-100 p-3 text-left hover:bg-base-200"
+            [class.border-base-300]="currentTheme() !== theme.id"
+            [style.border-color]="currentTheme() === theme.id ? 'var(--color-primary)' : null"
+            [attr.aria-checked]="currentTheme() === theme.id"
+            (click)="select(theme)"
+          >
+            <span class="flex h-8 overflow-hidden rounded-field border border-base-300">
+              @for (color of theme.swatches; track $index) {
+                <span class="flex-1" [style.background-color]="color"></span>
+              }
+            </span>
+            <span class="flex items-center justify-between text-sm text-base-content">
+              {{ theme.label }}
+              @if (currentTheme() === theme.id) {
+                <i class="pi pi-check text-xs" style="color: var(--color-primary)"></i>
+              }
+            </span>
+          </button>
+        }
+      </div>
+    </section>
+  }
+</div>

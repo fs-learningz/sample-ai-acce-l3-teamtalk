@@ -64,6 +64,13 @@ export const routes: Routes = [
         canDeactivate: [unsavedWorkspaceSettingsGuard],
       },
       {
+        path: 'appearance',
+        loadComponent: () =>
+          import('./features/workspaces/workspace-settings/workspace-settings-appearance.component').then(
+            (m) => m.WorkspaceSettingsAppearanceComponent,
+          ),
+      },
+      {
         path: 'members',
         loadComponent: () =>
           import('./features/workspaces/workspace-settings/workspace-settings-members.component').then(

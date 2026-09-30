@@ -1,3 +1,5 @@
+using TeamTalk.Application.Users;
+
 namespace TeamTalk.Application.Common.Models;
 
 public class IdentityUserResult
@@ -7,4 +9,6 @@ public class IdentityUserResult
     public required string Email { get; init; }
 
     public required string DisplayName { get; init; }
+
+    public string Theme { get; init; } = UserThemes.Default;
 }

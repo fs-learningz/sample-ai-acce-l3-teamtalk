@@ -3,6 +3,7 @@ export interface AuthResponse {
   email: string;
   displayName: string;
   token: string;
+  theme?: string;
 }
 
 export interface RegisterRequest {

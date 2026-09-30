@@ -15,4 +15,8 @@ public interface IIdentityService
         string password);
 
     Task<Guid?> FindUserIdByEmailAsync(string email);
+
+    Task<string?> GetThemeAsync(Guid userId);
+
+    Task<bool> SetThemeAsync(Guid userId, string theme);
 }

@@ -33,28 +33,96 @@
 
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(97% 0 0);
-  --color-base-300: oklch(94% 0 0);
+  --color-base-300: oklch(92% 0 0);
   --color-base-content: oklch(20% 0 0);
-  --color-primary: oklch(87% 0 0);
-  --color-primary-content: oklch(26% 0 0);
-  --color-secondary: oklch(87% 0 0);
-  --color-secondary-content: oklch(26% 0 0);
-  --color-accent: oklch(87% 0 0);
-  --color-accent-content: oklch(26% 0 0);
-  --color-neutral: oklch(87% 0 0);
-  --color-neutral-content: oklch(26% 0 0);
+  --color-primary: oklch(51% 0.23 277);
+  --color-primary-content: oklch(98% 0.01 277);
+  --color-secondary: oklch(45% 0.03 260);
+  --color-secondary-content: oklch(97% 0 0);
+  --color-accent: oklch(60% 0.11 184);
+  --color-accent-content: oklch(98% 0.01 184);
+  --color-neutral: oklch(27% 0.02 260);
+  --color-neutral-content: oklch(97% 0 0);
   --color-info: oklch(44% 0.11 240.79);
   --color-info-content: oklch(90% 0.058 230.902);
   --color-success: oklch(43% 0.095 166.913);
   --color-success-content: oklch(90% 0.093 164.15);
   --color-warning: oklch(47% 0.137 46.201);
   --color-warning-content: oklch(92% 0.12 95.746);
-  --color-error: oklch(44% 0.177 26.899);
-  --color-error-content: oklch(88% 0.062 18.334);
+  --color-error: oklch(50% 0.19 27);
+  --color-error-content: oklch(97% 0.02 18);
 
   --radius-selector: 0rem;
   --radius-field: 0.25rem;
   --radius-box: 0.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border-width: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+[data-theme="cupcake"] {
+  color-scheme: light;
+
+  --color-base-100: oklch(97.8% 0.008 60);
+  --color-base-200: oklch(94% 0.012 60);
+  --color-base-300: oklch(89% 0.016 60);
+  --color-base-content: oklch(30% 0.03 30);
+  --color-primary: oklch(60% 0.19 355);
+  --color-primary-content: oklch(98% 0.01 355);
+  --color-secondary: oklch(60% 0.1 210);
+  --color-secondary-content: oklch(98% 0.01 210);
+  --color-accent: oklch(70% 0.12 180);
+  --color-accent-content: oklch(25% 0.05 180);
+  --color-neutral: oklch(30% 0.03 30);
+  --color-neutral-content: oklch(96% 0.01 60);
+  --color-info: oklch(50% 0.11 240);
+  --color-info-content: oklch(96% 0.02 240);
+  --color-success: oklch(48% 0.1 166);
+  --color-success-content: oklch(96% 0.03 166);
+  --color-warning: oklch(50% 0.13 60);
+  --color-warning-content: oklch(96% 0.05 90);
+  --color-error: oklch(52% 0.19 25);
+  --color-error-content: oklch(97% 0.02 18);
+
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border-width: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+[data-theme="nord"] {
+  color-scheme: light;
+
+  --color-base-100: oklch(95.1% 0.007 260);
+  --color-base-200: oklch(92.7% 0.012 260);
+  --color-base-300: oklch(89% 0.016 262);
+  --color-base-content: oklch(32.4% 0.023 264);
+  --color-primary: oklch(59% 0.077 254);
+  --color-primary-content: oklch(98% 0.005 254);
+  --color-secondary: oklch(69% 0.06 220);
+  --color-secondary-content: oklch(25% 0.03 220);
+  --color-accent: oklch(72% 0.07 195);
+  --color-accent-content: oklch(25% 0.03 195);
+  --color-neutral: oklch(32.4% 0.023 264);
+  --color-neutral-content: oklch(95% 0.007 260);
+  --color-info: oklch(48% 0.09 240);
+  --color-info-content: oklch(97% 0.01 240);
+  --color-success: oklch(48% 0.1 145);
+  --color-success-content: oklch(97% 0.02 145);
+  --color-warning: oklch(50% 0.11 80);
+  --color-warning-content: oklch(97% 0.04 90);
+  --color-error: oklch(50% 0.15 20);
+  --color-error-content: oklch(97% 0.02 20);
+
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border-width: 1px;
@@ -85,6 +153,75 @@
   --color-warning-content: oklch(41% 0.112 45.904);
   --color-error: oklch(71% 0.194 13.428);
   --color-error-content: oklch(27% 0.105 12.094);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border-width: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+[data-theme="midnight"] {
+  color-scheme: dark;
+
+  --color-base-100: oklch(19% 0.035 260);
+  --color-base-200: oklch(15.5% 0.03 262);
+  --color-base-300: oklch(12.5% 0.025 264);
+  --color-base-content: oklch(95% 0.015 250);
+  --color-primary: oklch(74% 0.14 235);
+  --color-primary-content: oklch(20% 0.05 235);
+  --color-secondary: oklch(72% 0.14 295);
+  --color-secondary-content: oklch(20% 0.05 295);
+  --color-accent: oklch(78% 0.13 180);
+  --color-accent-content: oklch(22% 0.05 180);
+  --color-neutral: oklch(12% 0.02 262);
+  --color-neutral-content: oklch(92% 0.01 250);
+  --color-info: oklch(74% 0.16 232);
+  --color-info-content: oklch(25% 0.06 243);
+  --color-success: oklch(76% 0.177 163);
+  --color-success-content: oklch(30% 0.07 168);
+  --color-warning: oklch(82% 0.189 84);
+  --color-warning-content: oklch(35% 0.1 45);
+  --color-error: oklch(71% 0.194 13);
+  --color-error-content: oklch(25% 0.1 12);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border-width: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+
+[data-theme="dracula"] {
+  color-scheme: dark;
+
+  --color-base-100: oklch(29% 0.028 285);
+  --color-base-200: oklch(25.5% 0.026 285);
+  --color-base-300: oklch(22% 0.024 285);
+  --color-base-content: oklch(96% 0.01 100);
+  --color-primary: oklch(75% 0.14 300);
+  --color-primary-content: oklch(20% 0.05 300);
+  --color-secondary: oklch(72% 0.19 350);
+  --color-secondary-content: oklch(20% 0.06 350);
+  --color-accent: oklch(84% 0.17 160);
+  --color-accent-content: oklch(22% 0.05 160);
+  --color-neutral: oklch(24% 0.03 285);
+  --color-neutral-content: oklch(94% 0.01 100);
+  --color-info: oklch(80% 0.11 225);
+  --color-info-content: oklch(25% 0.05 225);
+  --color-success: oklch(84% 0.17 160);
+  --color-success-content: oklch(25% 0.06 160);
+  --color-warning: oklch(88% 0.15 100);
+  --color-warning-content: oklch(30% 0.08 90);
+  --color-error: oklch(68% 0.22 20);
+  --color-error-content: oklch(22% 0.1 20);
 
   --radius-selector: 0.5rem;
   --radius-field: 0.25rem;

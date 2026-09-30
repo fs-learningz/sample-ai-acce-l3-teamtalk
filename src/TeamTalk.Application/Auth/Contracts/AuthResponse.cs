@@ -1,3 +1,5 @@
+using TeamTalk.Application.Users;
+
 namespace TeamTalk.Application.Auth.Contracts;
 
 public class AuthResponse
@@ -9,4 +11,6 @@ public class AuthResponse
     public required string DisplayName { get; init; }
 
     public required string Token { get; init; }
+
+    public string Theme { get; init; } = UserThemes.Default;
 }

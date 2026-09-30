@@ -1,6 +1,7 @@
 using ErrorOr;
 using TeamTalk.Application.Auth.Contracts;
 using TeamTalk.Application.Common.Interfaces;
+using TeamTalk.Application.Common.Models;
 
 namespace TeamTalk.Application.Auth;
 
@@ -27,7 +28,7 @@ public class AuthService : IAuthService
             return result.Errors;
         }
 
-        return BuildAuthResponse(result.Value.UserId, result.Value.Email, result.Value.DisplayName);
+        return BuildAuthResponse(result.Value);
     }
 
     public async Task<ErrorOr<AuthResponse>> LoginAsync(LoginRequest request)
@@ -39,19 +40,20 @@ public class AuthService : IAuthService
             return result.Errors;
         }
 
-        return BuildAuthResponse(result.Value.UserId, result.Value.Email, result.Value.DisplayName);
+        return BuildAuthResponse(result.Value);
     }
 
-    private AuthResponse BuildAuthResponse(Guid userId, string email, string displayName)
+    private AuthResponse BuildAuthResponse(IdentityUserResult user)
     {
-        var token = _jwtTokenGenerator.GenerateToken(userId, email, displayName);
+        var token = _jwtTokenGenerator.GenerateToken(user.UserId, user.Email, user.DisplayName);
 
         return new AuthResponse
         {
-            UserId = userId,
-            Email = email,
-            DisplayName = displayName,
+            UserId = user.UserId,
+            Email = user.Email,
+            DisplayName = user.DisplayName,
             Token = token,
+            Theme = user.Theme,
         };
     }
 }

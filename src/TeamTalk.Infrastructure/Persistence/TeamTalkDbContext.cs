@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using TeamTalk.Application.Users;
 using TeamTalk.Domain.Entities;
 using TeamTalk.Infrastructure.Identity;
 
@@ -30,5 +31,10 @@ public class TeamTalkDbContext : IdentityDbContext<ApplicationUser, IdentityRole
         base.OnModelCreating(builder);
 
         builder.ApplyConfigurationsFromAssembly(typeof(TeamTalkDbContext).Assembly);
+
+        builder.Entity<ApplicationUser>()
+            .Property(u => u.Theme)
+            .HasMaxLength(32)
+            .HasDefaultValue(UserThemes.Default);
     }
 }
