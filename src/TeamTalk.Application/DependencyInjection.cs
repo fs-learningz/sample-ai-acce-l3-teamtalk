@@ -4,6 +4,7 @@ using TeamTalk.Application.Channels;
 using TeamTalk.Application.Invitations;
 using TeamTalk.Application.Members;
 using TeamTalk.Application.Messages;
+using TeamTalk.Application.Users;
 using TeamTalk.Application.Workspaces;
 
 namespace TeamTalk.Application;
@@ -18,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceMemberService, WorkspaceMemberService>();
         services.AddScoped<IChannelService, ChannelService>();
         services.AddScoped<IMessageService, MessageService>();
+        services.AddScoped<IUserPreferencesService, UserPreferencesService>();
 
         return services;
     }

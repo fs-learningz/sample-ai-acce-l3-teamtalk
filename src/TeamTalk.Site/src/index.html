@@ -2,9 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>TeamTalkSite</title>
+  <title>TeamTalk</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    try {
+      var t = localStorage.getItem('teamtalk.theme') || 'light';
+      var dark = ['dark', 'midnight', 'dracula'].indexOf(t) !== -1;
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-color-scheme', dark ? 'dark' : 'light');
+    } catch (e) {}
+  </script>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
 <body>

@@ -18,7 +18,7 @@ export const appConfig: ApplicationConfig = {
       theme: {
         preset: TeamTalkPreset,
         options: {
-          darkModeSelector: '[data-theme="dark"]',
+          darkModeSelector: '[data-color-scheme="dark"]',
         },
       },
       license: environment.primeNgLicenseKey,

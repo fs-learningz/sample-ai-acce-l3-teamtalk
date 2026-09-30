@@ -384,6 +384,13 @@ namespace TeamTalk.Infrastructure.Persistence.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("light");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 

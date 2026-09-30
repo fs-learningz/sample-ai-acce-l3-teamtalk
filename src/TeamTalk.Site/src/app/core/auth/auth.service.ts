@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
+import { ThemeService } from '../theme/theme.service';
 import { AuthResponse, LoginRequest, RegisterRequest } from '../models/auth.model';
 
 const TOKEN_STORAGE_KEY = 'teamtalk.auth.token';
@@ -14,6 +15,7 @@ interface StoredUser {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly themeService = inject(ThemeService);
   private readonly currentUserSignal = signal<StoredUser | null>(this.readStoredUser());
 
   readonly currentUser = this.currentUserSignal.asReadonly();
@@ -37,6 +39,7 @@ export class AuthService {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
     this.currentUserSignal.set(null);
+    this.themeService.reset();
   }
 
   getToken(): string | null {
@@ -57,6 +60,7 @@ export class AuthService {
       };
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
       this.currentUserSignal.set(user);
+      this.themeService.apply(response.theme);
     } catch {
       this.currentUserSignal.set(null);
     }

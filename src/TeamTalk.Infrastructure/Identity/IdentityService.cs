@@ -75,6 +75,29 @@ public class IdentityService : IIdentityService
         return user?.Id;
     }
 
+    public async Task<string?> GetThemeAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+
+        return user?.Theme;
+    }
+
+    public async Task<bool> SetThemeAsync(Guid userId, string theme)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.Theme = theme;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        return result.Succeeded;
+    }
+
     private static IdentityUserResult ToResult(ApplicationUser user)
     {
         return new IdentityUserResult
@@ -82,6 +105,7 @@ public class IdentityService : IIdentityService
             UserId = user.Id,
             Email = user.Email!,
             DisplayName = user.DisplayName,
+            Theme = user.Theme,
         };
     }
 }
