@@ -117,4 +117,45 @@ describe('WorkspaceSettingsDangerComponent', () => {
 
     expect(navigateSpy).toHaveBeenCalledWith(['/workspaces']);
   });
+
+  it('should show an error and not navigate when deleting the workspace fails', () => {
+    // Arrange
+    fixture.detectChanges();
+    fixture.componentInstance.deleteConfirmationText.set('Engineering');
+    const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate');
+
+    // Act
+    fixture.componentInstance.deleteWorkspace();
+    httpMock
+      .expectOne('/api/workspaces/w1')
+      .flush(null, { status: 500, statusText: 'Server Error' });
+
+    // Assert
+    expect(fixture.componentInstance.errorMessage()).toBe('Could not delete this workspace.');
+    expect(fixture.componentInstance.isDeleting()).toBe(false);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('should show an error and not navigate when leaving the workspace fails', () => {
+    // Arrange
+    store.members.set([admin('u1'), admin('u2')]);
+    fixture.detectChanges();
+    const confirmationService = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(confirmationService, 'confirm').mockImplementation((confirmation) => {
+      confirmation.accept?.();
+      return confirmationService;
+    });
+    const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate');
+
+    // Act
+    fixture.componentInstance.leaveWorkspace();
+    httpMock
+      .expectOne('/api/workspaces/w1/members/leave')
+      .flush(null, { status: 409, statusText: 'Conflict' });
+
+    // Assert
+    expect(fixture.componentInstance.errorMessage()).toBe('Could not leave this workspace.');
+    expect(fixture.componentInstance.isLeaving()).toBe(false);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
 });
