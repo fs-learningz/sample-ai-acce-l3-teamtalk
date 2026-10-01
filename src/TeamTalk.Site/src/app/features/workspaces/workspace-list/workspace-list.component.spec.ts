@@ -104,4 +104,94 @@ describe('WorkspaceListComponent', () => {
 
     expect(fixture.componentInstance.iconUrls()['w1']).toBeTruthy();
   });
+
+  function workspace(id: string, hasIcon = false) {
+    return {
+      id,
+      name: `Workspace ${id}`,
+      createdByUserId: 'u1',
+      createdAtUtc: new Date().toISOString(),
+      hasIcon,
+    };
+  }
+
+  it('should not create a workspace when the name is empty', () => {
+    // Arrange
+    fixture.detectChanges();
+    httpMock.expectOne('/api/workspaces').flush([]);
+    fixture.componentInstance.openCreateDialog();
+
+    // Act
+    fixture.componentInstance.onCreateSubmit();
+
+    // Assert
+    httpMock.expectNone({ method: 'POST', url: '/api/workspaces' });
+  });
+
+  it('should show an error and keep the dialog open when creating a workspace fails', () => {
+    // Arrange
+    fixture.detectChanges();
+    httpMock.expectOne('/api/workspaces').flush([]);
+    fixture.componentInstance.openCreateDialog();
+    fixture.componentInstance.createForm.setValue({ name: 'Design' });
+
+    // Act
+    fixture.componentInstance.onCreateSubmit();
+    httpMock
+      .expectOne({ method: 'POST', url: '/api/workspaces' })
+      .flush(null, { status: 500, statusText: 'Server Error' });
+
+    // Assert
+    expect(fixture.componentInstance.errorMessage()).toBe(
+      'Could not create the workspace. Please try again.',
+    );
+    expect(fixture.componentInstance.isCreateDialogVisible()).toBe(true);
+  });
+
+  it('should show an error when the workspaces fail to load', () => {
+    // Arrange
+    fixture.detectChanges();
+
+    // Act
+    httpMock
+      .expectOne('/api/workspaces')
+      .flush(null, { status: 500, statusText: 'Server Error' });
+
+    // Assert
+    expect(fixture.componentInstance.errorMessage()).toBe(
+      'Could not load your workspaces. Please refresh the page.',
+    );
+    expect(fixture.componentInstance.workspaces()).toEqual([]);
+  });
+
+  it('should navigate to the invitations page', () => {
+    // Arrange
+    const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/workspaces').flush([]);
+
+    // Act
+    fixture.componentInstance.openInvitations();
+
+    // Assert
+    expect(navigateSpy).toHaveBeenCalledWith(['/invitations']);
+  });
+
+  it('should fetch icons only for workspaces that have one and revoke them on destroy', () => {
+    // Arrange
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/workspaces').flush([workspace('w1', true), workspace('w2', false)]);
+    httpMock.expectOne('/api/workspaces/w1/icon').flush(new Blob(['icon']));
+    const iconUrl = fixture.componentInstance.iconUrls()['w1'];
+
+    // Act
+    fixture.destroy();
+
+    // Assert
+    httpMock.expectNone('/api/workspaces/w2/icon');
+    expect(fixture.componentInstance.iconUrls()['w2']).toBeUndefined();
+    expect(revokeSpy).toHaveBeenCalledWith(iconUrl);
+    revokeSpy.mockRestore();
+  });
 });
