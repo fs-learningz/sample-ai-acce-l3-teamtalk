@@ -14,6 +14,7 @@ import { SignalRService } from '../../../core/realtime/signalr.service';
   selector: 'app-channel-view',
   imports: [DatePipe, ReactiveFormsModule, ButtonModule, InputTextModule],
   templateUrl: './channel-view.component.html',
+  host: { class: 'block h-full' },
 })
 export class ChannelViewComponent implements OnInit, OnDestroy {
   private readonly formBuilder = inject(FormBuilder);
