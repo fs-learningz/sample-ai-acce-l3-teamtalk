@@ -581,4 +581,380 @@ public class ChannelServiceTests
         Assert.NotNull(state.LastReadAtUtc);
         await _channelUserStateRepository.Received(1).UpdateAsync(state);
     }
+
+    [Fact]
+    public async Task GetDetailsAsync_WhenUserCanAccessChannel_ReturnsDetailsFromQueryService()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
+        var details = new ChannelDetailsResponse
+        {
+            Id = channel.Id,
+            WorkspaceId = workspaceId,
+            Name = "general",
+            Type = ChannelType.Public,
+            CreatedByUserId = userId,
+            CreatedByDisplayName = "Alice",
+            CreatedAtUtc = channel.CreatedAtUtc,
+            MemberCount = 3,
+            IsMember = true,
+            IsPinned = false,
+            IsMuted = false,
+        };
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelQueryService.GetDetailsAsync(channel.Id, userId).Returns(details);
+
+        // act
+        var result = await _sut.GetDetailsAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.False(result.IsError);
+        Assert.Same(details, result.Value);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_WhenUserIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(false);
+
+        // act
+        var result = await _sut.GetDetailsAsync(userId, workspaceId, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+        await _channelQueryService.DidNotReceive().GetDetailsAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_WhenChannelDoesNotExist_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Channel?)null);
+
+        // act
+        var result = await _sut.GetDetailsAsync(userId, workspaceId, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_WhenChannelBelongsToAnotherWorkspace_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), Guid.NewGuid(), "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var result = await _sut.GetDetailsAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_ForPrivateChannelNonMember_ReturnsNotVisible()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "secret", ChannelType.Private, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelMemberRepository.IsMemberAsync(channel.Id, userId).Returns(false);
+
+        // act
+        var result = await _sut.GetDetailsAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotVisible, result.FirstError);
+    }
+
+    [Fact]
+    public async Task GetDetailsAsync_WhenQueryServiceReturnsNull_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelQueryService.GetDetailsAsync(channel.Id, userId).Returns((ChannelDetailsResponse?)null);
+
+        // act
+        var result = await _sut.GetDetailsAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+    }
+
+    [Fact]
+    public async Task MarkReadAsync_WhenNoStateExists_AddsStateWithLastRead()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelUserStateRepository.GetAsync(channel.Id, userId).Returns((ChannelUserState?)null);
+
+        // act
+        var result = await _sut.MarkReadAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.False(result.IsError);
+        await _channelUserStateRepository.Received(1).AddAsync(
+            Arg.Is<ChannelUserState>(s => s.ChannelId == channel.Id && s.UserId == userId && s.LastReadAtUtc != null));
+        await _channelUserStateRepository.DidNotReceive().UpdateAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task UpdatePreferencesAsync_WhenStateExists_UpdatesFlagsWithoutAdding()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
+        var state = new ChannelUserState(Guid.NewGuid(), channel.Id, userId);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelUserStateRepository.GetAsync(channel.Id, userId).Returns(state);
+
+        // act
+        var request = new UpdateChannelPreferencesRequest { IsPinned = true, IsMuted = false };
+        var result = await _sut.UpdatePreferencesAsync(userId, workspaceId, channel.Id, request);
+
+        // assert
+        Assert.False(result.IsError);
+        Assert.True(state.IsPinned);
+        Assert.False(state.IsMuted);
+        await _channelUserStateRepository.Received(1).UpdateAsync(state);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task MarkReadAsync_WhenUserIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(false);
+
+        // act
+        var result = await _sut.MarkReadAsync(userId, workspaceId, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+        await _channelUserStateRepository.DidNotReceive().UpdateAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task MarkReadAsync_WhenChannelBelongsToAnotherWorkspace_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), Guid.NewGuid(), "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var result = await _sut.MarkReadAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task MarkReadAsync_ForPrivateChannelNonMember_ReturnsNotVisible()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "secret", ChannelType.Private, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelMemberRepository.IsMemberAsync(channel.Id, userId).Returns(false);
+
+        // act
+        var result = await _sut.MarkReadAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotVisible, result.FirstError);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task UpdatePreferencesAsync_WhenUserIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(false);
+
+        // act
+        var request = new UpdateChannelPreferencesRequest { IsPinned = true, IsMuted = true };
+        var result = await _sut.UpdatePreferencesAsync(userId, workspaceId, Guid.NewGuid(), request);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task UpdatePreferencesAsync_WhenChannelBelongsToAnotherWorkspace_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), Guid.NewGuid(), "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var request = new UpdateChannelPreferencesRequest { IsPinned = true, IsMuted = true };
+        var result = await _sut.UpdatePreferencesAsync(userId, workspaceId, channel.Id, request);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task UpdatePreferencesAsync_ForPrivateChannelNonMember_ReturnsNotVisible()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "secret", ChannelType.Private, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelMemberRepository.IsMemberAsync(channel.Id, userId).Returns(false);
+
+        // act
+        var request = new UpdateChannelPreferencesRequest { IsPinned = true, IsMuted = true };
+        var result = await _sut.UpdatePreferencesAsync(userId, workspaceId, channel.Id, request);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotVisible, result.FirstError);
+        await _channelUserStateRepository.DidNotReceive().AddAsync(Arg.Any<ChannelUserState>());
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WhenUserIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(false);
+
+        // act
+        var result = await _sut.LeaveAsync(userId, workspaceId, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+        await _channelMemberRepository.DidNotReceive().RemoveAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WhenChannelBelongsToAnotherWorkspace_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), Guid.NewGuid(), "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var result = await _sut.LeaveAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+        await _channelMemberRepository.DidNotReceive().RemoveAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenUserIsNotWorkspaceMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns((WorkspaceMember?)null);
+
+        // act
+        var result = await _sut.DeleteAsync(userId, workspaceId, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAMember, result.FirstError);
+        await _channelRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenChannelDoesNotExist_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var admin = new WorkspaceMember(Guid.NewGuid(), workspaceId, userId, WorkspaceRole.Admin, DateTime.UtcNow);
+        _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns(admin);
+        _channelRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Channel?)null);
+
+        // act
+        var result = await _sut.DeleteAsync(userId, workspaceId, Guid.NewGuid());
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+        await _channelRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenChannelBelongsToAnotherWorkspace_ReturnsNotFound()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), Guid.NewGuid(), "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        var admin = new WorkspaceMember(Guid.NewGuid(), workspaceId, userId, WorkspaceRole.Admin, DateTime.UtcNow);
+        _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns(admin);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var result = await _sut.DeleteAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotFound, result.FirstError);
+        await _channelRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>());
+    }
 }
