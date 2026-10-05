@@ -24,6 +24,8 @@ public class TeamTalkDbContext : IdentityDbContext<ApplicationUser, IdentityRole
 
     public DbSet<ChannelMember> ChannelMembers { get; set; } = null!;
 
+    public DbSet<ChannelUserState> ChannelUserStates { get; set; } = null!;
+
     public DbSet<Message> Messages { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)

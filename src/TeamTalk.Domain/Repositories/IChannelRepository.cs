@@ -11,4 +11,9 @@ public interface IChannelRepository
     Task<IReadOnlyList<Channel>> GetVisibleToUserAsync(Guid workspaceId, Guid userId);
 
     Task AddAsync(Channel channel);
+
+    /// <summary>
+    /// Deletes the channel together with its messages, members and per-user state.
+    /// </summary>
+    Task DeleteAsync(Guid id);
 }

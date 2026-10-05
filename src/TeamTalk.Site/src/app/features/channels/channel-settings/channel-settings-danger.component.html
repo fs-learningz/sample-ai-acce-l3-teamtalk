@@ -1,0 +1,59 @@
+<div class="flex max-w-xl flex-col gap-6">
+  @if (errorMessage()) {
+    <p class="text-sm text-error">{{ errorMessage() }}</p>
+  }
+
+  @if (store.isMember()) {
+    <section class="flex flex-col gap-2 rounded-field border border-base-300 p-4">
+      <h2 class="font-semibold text-base-content">Leave channel</h2>
+      <p class="text-sm text-base-content/70">
+        @if (store.channel()?.type === 'Private') {
+          You will lose access to this private channel and can only rejoin if you are invited again.
+        } @else {
+          You will no longer be a member of this channel. You can join it again later.
+        }
+      </p>
+      <p-button
+        label="Leave channel"
+        icon="pi pi-sign-out"
+        severity="secondary"
+        styleClass="w-fit"
+        [loading]="isLeaving()"
+        (onClick)="leaveChannel()"
+      />
+    </section>
+  }
+
+  @if (store.isWorkspaceAdmin()) {
+    <section class="flex flex-col gap-2 rounded-field border border-error p-4">
+      <h2 class="font-semibold text-error">Delete channel</h2>
+      <p class="text-sm text-base-content/70">
+        This permanently deletes
+        <strong>{{ store.channel()?.name }}</strong>
+        and all of its messages. This cannot be undone.
+      </p>
+
+      <label class="flex flex-col gap-1 text-sm text-base-content">
+        Type <strong>{{ store.channel()?.name }}</strong> to confirm
+        <input
+          pInputText
+          type="text"
+          [ngModel]="deleteConfirmationText()"
+          (ngModelChange)="deleteConfirmationText.set($event)"
+        />
+      </label>
+
+      <p-button
+        label="Delete channel"
+        icon="pi pi-trash"
+        severity="danger"
+        styleClass="w-fit"
+        [disabled]="!canDelete() || isDeleting()"
+        [loading]="isDeleting()"
+        (onClick)="deleteChannel()"
+      />
+    </section>
+  }
+</div>
+
+<p-confirmdialog [style]="{ width: '32rem' }" [breakpoints]="{ '768px': '90vw' }" />

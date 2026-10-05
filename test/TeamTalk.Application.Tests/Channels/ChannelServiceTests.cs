@@ -3,6 +3,7 @@ using NSubstitute;
 using TeamTalk.Application.Channels;
 using TeamTalk.Application.Channels.Contracts;
 using TeamTalk.Application.Common.Errors;
+using TeamTalk.Application.Common.Interfaces;
 using TeamTalk.Domain.Entities;
 using TeamTalk.Domain.Enums;
 using TeamTalk.Domain.Repositories;
@@ -14,6 +15,8 @@ public class ChannelServiceTests
     private readonly IChannelRepository _channelRepository;
     private readonly IChannelMemberRepository _channelMemberRepository;
     private readonly IWorkspaceMemberRepository _workspaceMemberRepository;
+    private readonly IChannelUserStateRepository _channelUserStateRepository;
+    private readonly IChannelQueryService _channelQueryService;
     private readonly ChannelService _sut;
 
     public ChannelServiceTests()
@@ -21,7 +24,14 @@ public class ChannelServiceTests
         _channelRepository = Substitute.For<IChannelRepository>();
         _channelMemberRepository = Substitute.For<IChannelMemberRepository>();
         _workspaceMemberRepository = Substitute.For<IWorkspaceMemberRepository>();
-        _sut = new ChannelService(_channelRepository, _channelMemberRepository, _workspaceMemberRepository);
+        _channelUserStateRepository = Substitute.For<IChannelUserStateRepository>();
+        _channelQueryService = Substitute.For<IChannelQueryService>();
+        _sut = new ChannelService(
+            _channelRepository,
+            _channelMemberRepository,
+            _workspaceMemberRepository,
+            _channelUserStateRepository,
+            _channelQueryService);
     }
 
     [Fact]
@@ -155,10 +165,26 @@ public class ChannelServiceTests
         // arrange
         var workspaceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var general = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
-        var secret = new Channel(Guid.NewGuid(), workspaceId, "secret", ChannelType.Private, userId, DateTime.UtcNow);
+        var general = new ChannelResponse
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            Name = "general",
+            Type = ChannelType.Public,
+            CreatedByUserId = userId,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+        var secret = new ChannelResponse
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            Name = "secret",
+            Type = ChannelType.Private,
+            CreatedByUserId = userId,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
         _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
-        _channelRepository.GetVisibleToUserAsync(workspaceId, userId).Returns(new List<Channel> { general, secret });
+        _channelQueryService.GetVisibleAsync(workspaceId, userId).Returns(new List<ChannelResponse> { general, secret });
 
         // act
         var result = await _sut.GetVisibleAsync(userId, workspaceId);
@@ -178,7 +204,7 @@ public class ChannelServiceTests
         var workspaceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
-        _channelRepository.GetVisibleToUserAsync(workspaceId, userId).Returns(new List<Channel>());
+        _channelQueryService.GetVisibleAsync(workspaceId, userId).Returns(new List<ChannelResponse>());
 
         // act
         var result = await _sut.GetVisibleAsync(userId, workspaceId);
@@ -435,5 +461,124 @@ public class ChannelServiceTests
         // assert
         Assert.False(result.IsError);
         await _channelMemberRepository.DidNotReceive().AddAsync(Arg.Any<ChannelMember>());
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WhenUserIsChannelMember_RemovesMembership()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelMemberRepository.IsMemberAsync(channel.Id, userId).Returns(true);
+
+        // act
+        var result = await _sut.LeaveAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.False(result.IsError);
+        await _channelMemberRepository.Received(1).RemoveAsync(channel.Id, userId);
+    }
+
+    [Fact]
+    public async Task LeaveAsync_WhenUserIsNotChannelMember_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelMemberRepository.IsMemberAsync(channel.Id, userId).Returns(false);
+
+        // act
+        var result = await _sut.LeaveAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(ChannelErrors.NotAMember, result.FirstError);
+        await _channelMemberRepository.DidNotReceive().RemoveAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenUserIsWorkspaceAdmin_DeletesChannel()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        var admin = new WorkspaceMember(Guid.NewGuid(), workspaceId, userId, WorkspaceRole.Admin, DateTime.UtcNow);
+        _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns(admin);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var result = await _sut.DeleteAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.False(result.IsError);
+        await _channelRepository.Received(1).DeleteAsync(channel.Id);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenUserIsNotAdmin_ReturnsForbidden()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, Guid.NewGuid(), DateTime.UtcNow);
+        var member = new WorkspaceMember(Guid.NewGuid(), workspaceId, userId, WorkspaceRole.Member, DateTime.UtcNow);
+        _workspaceMemberRepository.GetAsync(workspaceId, userId).Returns(member);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var result = await _sut.DeleteAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.True(result.IsError);
+        Assert.Equal(WorkspaceErrors.NotAnAdmin, result.FirstError);
+        await _channelRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task UpdatePreferencesAsync_WhenNoStateExists_CreatesState()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+
+        // act
+        var request = new UpdateChannelPreferencesRequest { IsPinned = true, IsMuted = true };
+        var result = await _sut.UpdatePreferencesAsync(userId, workspaceId, channel.Id, request);
+
+        // assert
+        Assert.False(result.IsError);
+        await _channelUserStateRepository.Received(1).AddAsync(
+            Arg.Is<ChannelUserState>(s => s.ChannelId == channel.Id && s.UserId == userId && s.IsPinned && s.IsMuted));
+    }
+
+    [Fact]
+    public async Task MarkReadAsync_WhenStateExists_UpdatesLastRead()
+    {
+        // arrange
+        var workspaceId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var channel = new Channel(Guid.NewGuid(), workspaceId, "general", ChannelType.Public, userId, DateTime.UtcNow);
+        var state = new ChannelUserState(Guid.NewGuid(), channel.Id, userId);
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+        _channelRepository.GetByIdAsync(channel.Id).Returns(channel);
+        _channelUserStateRepository.GetAsync(channel.Id, userId).Returns(state);
+
+        // act
+        var result = await _sut.MarkReadAsync(userId, workspaceId, channel.Id);
+
+        // assert
+        Assert.False(result.IsError);
+        Assert.NotNull(state.LastReadAtUtc);
+        await _channelUserStateRepository.Received(1).UpdateAsync(state);
     }
 }

@@ -53,6 +53,7 @@ public class WorkspaceRepository : IWorkspaceRepository
             var channelIds = _dbContext.Channels.Where(c => c.WorkspaceId == id).Select(c => c.Id);
 
             await _dbContext.Messages.Where(m => channelIds.Contains(m.ChannelId)).ExecuteDeleteAsync();
+            await _dbContext.ChannelUserStates.Where(s => channelIds.Contains(s.ChannelId)).ExecuteDeleteAsync();
             await _dbContext.ChannelMembers.Where(cm => channelIds.Contains(cm.ChannelId)).ExecuteDeleteAsync();
             await _dbContext.Channels.Where(c => c.WorkspaceId == id).ExecuteDeleteAsync();
             await _dbContext.WorkspaceInvitations.Where(i => i.WorkspaceId == id).ExecuteDeleteAsync();

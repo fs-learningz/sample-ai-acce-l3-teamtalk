@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using NSubstitute;
 using TeamTalk.Application.Channels;
 using TeamTalk.Application.Common.Errors;
+using TeamTalk.Domain.Repositories;
 using TeamTalk.Hub.Hubs;
 
 namespace TeamTalk.Hub.Tests.Hubs;
@@ -13,6 +14,7 @@ public class ChannelHubTests
     private const string ConnectionId = "connection-1";
 
     private readonly IChannelService _channelService;
+    private readonly IWorkspaceMemberRepository _workspaceMemberRepository;
     private readonly HubCallerContext _context;
     private readonly IGroupManager _groups;
     private readonly ChannelHub _sut;
@@ -20,10 +22,11 @@ public class ChannelHubTests
     public ChannelHubTests()
     {
         _channelService = Substitute.For<IChannelService>();
+        _workspaceMemberRepository = Substitute.For<IWorkspaceMemberRepository>();
         _context = Substitute.For<HubCallerContext>();
         _context.ConnectionId.Returns(ConnectionId);
         _groups = Substitute.For<IGroupManager>();
-        _sut = new ChannelHub(_channelService)
+        _sut = new ChannelHub(_channelService, _workspaceMemberRepository)
         {
             Context = _context,
             Groups = _groups,
@@ -143,5 +146,41 @@ public class ChannelHubTests
 
         // assert
         Assert.NotEqual(first, second);
+    }
+
+    [Fact]
+    public async Task JoinWorkspaceAsync_WhenUserIsMember_AddsConnectionToWorkspaceGroup()
+    {
+        // arrange
+        var userId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        SetUser(new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(true);
+
+        // act
+        await _sut.JoinWorkspaceAsync(workspaceId);
+
+        // assert
+        await _groups.Received(1).AddToGroupAsync(
+            ConnectionId,
+            ChannelHub.WorkspaceGroupName(workspaceId),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task JoinWorkspaceAsync_WhenUserIsNotMember_ThrowsHubException()
+    {
+        // arrange
+        var userId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        SetUser(new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
+        _workspaceMemberRepository.IsMemberAsync(workspaceId, userId).Returns(false);
+
+        // act / assert
+        await Assert.ThrowsAsync<HubException>(() => _sut.JoinWorkspaceAsync(workspaceId));
+        await _groups.DidNotReceive().AddToGroupAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
     }
 }

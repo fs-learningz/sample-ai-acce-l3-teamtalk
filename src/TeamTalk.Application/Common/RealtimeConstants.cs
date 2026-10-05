@@ -9,5 +9,6 @@ public static class RealtimeConstants
         public const string MessageSent = "ReceiveMessage";
         public const string MessageEdited = "MessageEdited";
         public const string MessageDeleted = "MessageDeleted";
+        public const string ChannelActivity = "ChannelActivity";
     }
 }

@@ -11,6 +11,9 @@ const channel: ChannelResponse = {
   type: 'Public',
   createdByUserId: 'u1',
   createdAtUtc: '2026-01-01T00:00:00Z',
+  isPinned: false,
+  isMuted: false,
+  hasUnread: false,
 };
 
 describe('ChannelService', () => {
@@ -64,5 +67,58 @@ describe('ChannelService', () => {
     httpMock.expectOne('/api/workspaces/w1/channels').flush(null, { status: 409, statusText: 'Conflict' });
 
     expect(status).toBe(409);
+  });
+
+  it('should mark a channel as read and emit the channel id', () => {
+    const emitted: string[] = [];
+    service.channelRead$.subscribe((id) => emitted.push(id));
+
+    service.markReadAsync('w1', 'c1').subscribe();
+
+    const req = httpMock.expectOne('/api/workspaces/w1/channels/c1/read');
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+    expect(emitted).toEqual(['c1']);
+  });
+
+  it('should update the channel preferences', () => {
+    service.updatePreferencesAsync('w1', 'c1', { isPinned: true, isMuted: false }).subscribe();
+
+    const req = httpMock.expectOne('/api/workspaces/w1/channels/c1/preferences');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ isPinned: true, isMuted: false });
+    req.flush(null);
+  });
+
+  it('should leave a channel and emit that it was removed', () => {
+    const emitted: string[] = [];
+    service.channelRemoved$.subscribe((id) => emitted.push(id));
+
+    service.leaveAsync('w1', 'c1').subscribe();
+
+    const req = httpMock.expectOne('/api/workspaces/w1/channels/c1/leave');
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+    expect(emitted).toEqual(['c1']);
+  });
+
+  it('should delete a channel and emit that it was removed', () => {
+    const emitted: string[] = [];
+    service.channelRemoved$.subscribe((id) => emitted.push(id));
+
+    service.deleteAsync('w1', 'c1').subscribe();
+
+    const req = httpMock.expectOne('/api/workspaces/w1/channels/c1');
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+    expect(emitted).toEqual(['c1']);
+  });
+
+  it('should fetch the channel details', () => {
+    service.getDetailsAsync('w1', 'c1').subscribe();
+
+    const req = httpMock.expectOne('/api/workspaces/w1/channels/c1');
+    expect(req.request.method).toBe('GET');
+    req.flush({});
   });
 });

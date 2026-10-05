@@ -19,6 +19,11 @@ public static class ChannelErrors
         get { return Error.Forbidden("Channel.NotVisible", "You do not have access to this channel."); }
     }
 
+    public static Error NotAMember
+    {
+        get { return Error.Forbidden("Channel.NotAMember", "You are not a member of this channel."); }
+    }
+
     public static Error CannotJoinPrivateChannel
     {
         get { return Error.Forbidden("Channel.CannotJoinPrivateChannel", "You cannot join a private channel without an invitation."); }

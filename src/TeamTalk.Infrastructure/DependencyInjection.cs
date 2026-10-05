@@ -38,6 +38,8 @@ public static class DependencyInjection
         builder.Services.AddScoped<IWorkspaceInvitationRepository, WorkspaceInvitationRepository>();
         builder.Services.AddScoped<IChannelRepository, ChannelRepository>();
         builder.Services.AddScoped<IChannelMemberRepository, ChannelMemberRepository>();
+        builder.Services.AddScoped<IChannelUserStateRepository, ChannelUserStateRepository>();
+        builder.Services.AddScoped<IChannelQueryService, ChannelQueryService>();
         builder.Services.AddScoped<IMessageRepository, MessageRepository>();
         builder.Services.AddScoped<IMessageQueryService, MessageQueryService>();
         builder.Services.AddScoped<IWorkspaceMemberQueryService, WorkspaceMemberQueryService>();

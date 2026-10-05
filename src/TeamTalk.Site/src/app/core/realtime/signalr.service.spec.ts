@@ -5,12 +5,16 @@ import { SignalRService } from './signalr.service';
 
 const hoisted = vi.hoisted(() => {
   const handlers = new Map<string, (message: unknown) => void>();
+  const reconnectedHandlers: Array<() => void> = [];
   const connection = {
     on: vi.fn((event: string, handler: (message: unknown) => void) => {
       handlers.set(event, handler);
     }),
     start: vi.fn(() => Promise.resolve()),
     invoke: vi.fn(() => Promise.resolve()),
+    onreconnected: vi.fn((handler: () => void) => {
+      reconnectedHandlers.push(handler);
+    }),
   };
   const builder = {
     withUrl: vi.fn(),
@@ -20,7 +24,7 @@ const hoisted = vi.hoisted(() => {
   builder.withUrl.mockReturnValue(builder);
   builder.withAutomaticReconnect.mockReturnValue(builder);
 
-  return { handlers, connection, builder };
+  return { handlers, reconnectedHandlers, connection, builder };
 });
 
 vi.mock('@microsoft/signalr', () => ({
@@ -47,6 +51,7 @@ describe('SignalRService', () => {
   beforeEach(() => {
     token = 'jwt-token';
     hoisted.handlers.clear();
+    hoisted.reconnectedHandlers.length = 0;
     hoisted.connection.on.mockClear();
     hoisted.connection.start.mockClear();
     hoisted.connection.invoke.mockClear();
@@ -91,11 +96,11 @@ describe('SignalRService', () => {
     expect(hoisted.connection.start).toHaveBeenCalledTimes(1);
   });
 
-  it('registers handlers for the three message events', async () => {
+  it('registers handlers for the message and channel activity events', async () => {
     await service.connectAsync();
 
     expect([...hoisted.handlers.keys()].sort()).toEqual(
-      ['MessageDeleted', 'MessageEdited', 'ReceiveMessage'].sort(),
+      ['ChannelActivity', 'MessageDeleted', 'MessageEdited', 'ReceiveMessage'].sort(),
     );
   });
 
@@ -177,5 +182,44 @@ describe('SignalRService', () => {
     hoisted.connection.invoke.mockRejectedValueOnce(new Error('You do not have access to this channel.'));
 
     await expect(service.joinChannelAsync('c1')).rejects.toThrow('You do not have access');
+  });
+
+  it('emits channelActivity$ when a ChannelActivity event arrives', async () => {
+    const received: unknown[] = [];
+    service.channelActivity$.subscribe((a) => received.push(a));
+    await service.connectAsync();
+
+    hoisted.handlers.get('ChannelActivity')!({ channelId: 'c1', senderId: 'u2' });
+
+    expect(received).toEqual([{ channelId: 'c1', senderId: 'u2' }]);
+  });
+
+  it('invokes JoinWorkspaceAsync on the hub with the workspace id', async () => {
+    await service.connectAsync();
+
+    await service.joinWorkspaceAsync('w1');
+
+    expect(hoisted.connection.invoke).toHaveBeenCalledWith('JoinWorkspaceAsync', 'w1');
+  });
+
+  it('rejoins the workspace after the connection reconnects', async () => {
+    await service.connectAsync();
+    await service.joinWorkspaceAsync('w1');
+    hoisted.connection.invoke.mockClear();
+
+    hoisted.reconnectedHandlers.forEach((handler) => handler());
+
+    expect(hoisted.connection.invoke).toHaveBeenCalledWith('JoinWorkspaceAsync', 'w1');
+  });
+
+  it('does not rejoin a workspace that was left before reconnecting', async () => {
+    await service.connectAsync();
+    await service.joinWorkspaceAsync('w1');
+    await service.leaveWorkspaceAsync('w1');
+    hoisted.connection.invoke.mockClear();
+
+    hoisted.reconnectedHandlers.forEach((handler) => handler());
+
+    expect(hoisted.connection.invoke).not.toHaveBeenCalled();
   });
 });

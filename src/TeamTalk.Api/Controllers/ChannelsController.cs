@@ -65,4 +65,86 @@ public class ChannelsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("{channelId:guid}")]
+    public async Task<IActionResult> GetDetailsAsync(Guid workspaceId, Guid channelId)
+    {
+        var result = await _channelService.GetDetailsAsync(_currentUserService.UserId, workspaceId, channelId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpPost("{channelId:guid}/read")]
+    public async Task<IActionResult> MarkReadAsync(Guid workspaceId, Guid channelId)
+    {
+        var result = await _channelService.MarkReadAsync(_currentUserService.UserId, workspaceId, channelId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return NoContent();
+    }
+
+    [HttpPut("{channelId:guid}/preferences")]
+    public async Task<IActionResult> UpdatePreferencesAsync(
+        Guid workspaceId,
+        Guid channelId,
+        UpdateChannelPreferencesRequest request)
+    {
+        var result = await _channelService.UpdatePreferencesAsync(
+            _currentUserService.UserId,
+            workspaceId,
+            channelId,
+            request);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return NoContent();
+    }
+
+    [HttpPost("{channelId:guid}/leave")]
+    public async Task<IActionResult> LeaveAsync(Guid workspaceId, Guid channelId)
+    {
+        var result = await _channelService.LeaveAsync(_currentUserService.UserId, workspaceId, channelId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return NoContent();
+    }
+
+    [HttpDelete("{channelId:guid}")]
+    public async Task<IActionResult> DeleteAsync(Guid workspaceId, Guid channelId)
+    {
+        var result = await _channelService.DeleteAsync(_currentUserService.UserId, workspaceId, channelId);
+
+        if (result.IsError)
+        {
+            var error = result.FirstError;
+
+            return Problem(statusCode: error.Type.TypeToCode(), title: error.Code, detail: error.Description);
+        }
+
+        return NoContent();
+    }
 }

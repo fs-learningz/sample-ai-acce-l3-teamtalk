@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using TeamTalk.Application.Channels;
+using TeamTalk.Domain.Repositories;
 
 namespace TeamTalk.Hub.Hubs;
 
@@ -10,9 +11,29 @@ public class ChannelHub : Microsoft.AspNetCore.SignalR.Hub
 {
     private readonly IChannelService _channelService;
 
-    public ChannelHub(IChannelService channelService)
+    private readonly IWorkspaceMemberRepository _workspaceMemberRepository;
+
+    public ChannelHub(IChannelService channelService, IWorkspaceMemberRepository workspaceMemberRepository)
     {
         _channelService = channelService;
+        _workspaceMemberRepository = workspaceMemberRepository;
+    }
+
+    public async Task JoinWorkspaceAsync(Guid workspaceId)
+    {
+        var isMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, GetUserId());
+
+        if (isMember is false)
+        {
+            throw new HubException("You are not a member of this workspace.");
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, WorkspaceGroupName(workspaceId));
+    }
+
+    public async Task LeaveWorkspaceAsync(Guid workspaceId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, WorkspaceGroupName(workspaceId));
     }
 
     public async Task JoinChannelAsync(Guid channelId)
@@ -36,6 +57,11 @@ public class ChannelHub : Microsoft.AspNetCore.SignalR.Hub
     public static string GroupName(Guid channelId)
     {
         return "channel-" + channelId;
+    }
+
+    public static string WorkspaceGroupName(Guid workspaceId)
+    {
+        return "workspace-" + workspaceId;
     }
 
     private Guid GetUserId()

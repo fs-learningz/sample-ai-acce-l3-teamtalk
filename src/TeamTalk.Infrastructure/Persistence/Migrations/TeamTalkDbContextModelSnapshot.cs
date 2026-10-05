@@ -204,6 +204,34 @@ namespace TeamTalk.Infrastructure.Persistence.Migrations
                     b.ToTable("ChannelMembers", (string)null);
                 });
 
+            modelBuilder.Entity("TeamTalk.Domain.Entities.ChannelUserState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsMuted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastReadAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelUserStates", (string)null);
+                });
+
             modelBuilder.Entity("TeamTalk.Domain.Entities.Message", b =>
                 {
                     b.Property<Guid>("Id")

@@ -6,6 +6,7 @@ using TeamTalk.Application;
 using TeamTalk.Application.Common;
 using TeamTalk.Application.Common.Models;
 using TeamTalk.Hub.Hubs;
+using TeamTalk.Domain.Repositories;
 using TeamTalk.Infrastructure;
 using TeamTalk.ServiceDefaults;
 
@@ -89,7 +90,8 @@ app.MapPost("/internal/broadcast/channels/{channelId:guid}", async (
     Guid channelId,
     BroadcastMessageRequest body,
     HttpRequest request,
-    IHubContext<ChannelHub> hubContext) =>
+    IHubContext<ChannelHub> hubContext,
+    IChannelRepository channelRepository) =>
 {
     var providedApiKey = request.Headers[RealtimeConstants.InternalApiKeyHeaderName].ToString();
 
@@ -99,6 +101,24 @@ app.MapPost("/internal/broadcast/channels/{channelId:guid}", async (
     }
 
     await hubContext.Clients.Group(ChannelHub.GroupName(channelId)).SendAsync(body.EventName, body.Message);
+
+    if (body.EventName == RealtimeConstants.Events.MessageSent)
+    {
+        var channel = await channelRepository.GetByIdAsync(channelId);
+
+        if (channel is not null)
+        {
+            var notification = new ChannelActivityNotification
+            {
+                ChannelId = channelId,
+                SenderId = body.Message.SenderId,
+            };
+
+            await hubContext.Clients
+                .Group(ChannelHub.WorkspaceGroupName(channel.WorkspaceId))
+                .SendAsync(RealtimeConstants.Events.ChannelActivity, notification);
+        }
+    }
 
     return Results.Ok();
 });

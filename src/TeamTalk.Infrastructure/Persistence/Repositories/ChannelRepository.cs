@@ -43,4 +43,21 @@ public class ChannelRepository : IChannelRepository
         await _dbContext.Channels.AddAsync(channel);
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+            await _dbContext.Messages.Where(m => m.ChannelId == id).ExecuteDeleteAsync();
+            await _dbContext.ChannelMembers.Where(m => m.ChannelId == id).ExecuteDeleteAsync();
+            await _dbContext.ChannelUserStates.Where(s => s.ChannelId == id).ExecuteDeleteAsync();
+            await _dbContext.Channels.Where(c => c.Id == id).ExecuteDeleteAsync();
+
+            await transaction.CommitAsync();
+        });
+    }
 }

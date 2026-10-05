@@ -86,6 +86,31 @@ export const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'workspaces/:workspaceId/channels/:channelId/settings',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/channels/channel-settings/channel-settings.component').then(
+        (m) => m.ChannelSettingsComponent,
+      ),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'general' },
+      {
+        path: 'general',
+        loadComponent: () =>
+          import('./features/channels/channel-settings/channel-settings-general.component').then(
+            (m) => m.ChannelSettingsGeneralComponent,
+          ),
+      },
+      {
+        path: 'danger',
+        loadComponent: () =>
+          import('./features/channels/channel-settings/channel-settings-danger.component').then(
+            (m) => m.ChannelSettingsDangerComponent,
+          ),
+      },
+    ],
+  },
   { path: '', pathMatch: 'full', redirectTo: 'workspaces' },
   { path: '**', redirectTo: 'workspaces' },
 ];

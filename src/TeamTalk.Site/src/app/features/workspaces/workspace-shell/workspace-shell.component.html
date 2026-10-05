@@ -44,18 +44,41 @@
 
       <nav class="flex flex-col gap-1">
         @for (channel of channels(); track channel.id) {
-          <button
-            type="button"
-            class="rounded-field px-3 py-2 text-left text-base-content hover:bg-base-300"
-            (click)="openChannel(channel)"
-          >
-            @if (channel.type === 'Private') {
-              <i class="pi pi-lock mr-1 text-xs"></i>
-            } @else {
-              <span class="mr-1">#</span>
-            }
-            {{ channel.name }}
-          </button>
+          <div class="group flex items-center rounded-field hover:bg-base-300">
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 cursor-pointer items-center py-2 pl-3 text-left text-base-content"
+              [class.font-semibold]="channel.hasUnread && !channel.isMuted"
+              [class.opacity-60]="channel.isMuted"
+              (click)="openChannel(channel)"
+            >
+              @if (channel.type === 'Private') {
+                <i class="pi pi-lock mr-1 text-xs"></i>
+              } @else {
+                <span class="mr-1">#</span>
+              }
+              <span class="truncate">{{ channel.name }}</span>
+              @if (channel.isPinned) {
+                <i class="pi pi-thumbtack ml-1 text-xs" title="Pinned"></i>
+              }
+              @if (channel.isMuted) {
+                <i class="pi pi-bell-slash ml-1 text-xs" title="Muted"></i>
+              }
+              @if (channel.hasUnread && !channel.isMuted) {
+                <span class="ml-2 h-2 w-2 shrink-0 rounded-full bg-primary" title="Unread"></span>
+              }
+            </button>
+            <button
+              type="button"
+              class="mr-1 cursor-pointer rounded-field px-2 py-1 text-base-content/70 opacity-0 hover:bg-base-100 hover:text-base-content focus-visible:opacity-100 group-hover:opacity-100"
+              [class.opacity-100]="menuChannel()?.id === channel.id"
+              aria-haspopup="true"
+              [attr.aria-label]="'Options for ' + channel.name"
+              (click)="toggleChannelMenu($event, channel)"
+            >
+              <i class="pi pi-ellipsis-v"></i>
+            </button>
+          </div>
         }
       </nav>
 
@@ -99,6 +122,51 @@
     </main>
   </div>
 </div>
+
+<p-popover (onHide)="menuChannel.set(null)">
+  @if (menuChannel(); as channel) {
+    <div class="flex w-56 flex-col gap-1" role="menu">
+      <button
+        type="button"
+        role="menuitem"
+        class="flex cursor-pointer items-center gap-2 rounded-field px-3 py-2 text-left text-sm text-base-content hover:bg-base-200 disabled:cursor-default disabled:opacity-50"
+        [disabled]="!channel.hasUnread"
+        (click)="markAsRead(channel)"
+      >
+        <i class="pi pi-check"></i>
+        Mark as read
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class="flex cursor-pointer items-center gap-2 rounded-field px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
+        (click)="toggleMute(channel)"
+      >
+        <i class="pi" [class.pi-bell-slash]="!channel.isMuted" [class.pi-bell]="channel.isMuted"></i>
+        {{ channel.isMuted ? 'Unmute conversation' : 'Mute conversation' }}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class="flex cursor-pointer items-center gap-2 rounded-field px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
+        (click)="togglePin(channel)"
+      >
+        <i class="pi pi-thumbtack"></i>
+        {{ channel.isPinned ? 'Unpin channel' : 'Pin channel' }}
+      </button>
+      <hr class="my-1 border-base-300" />
+      <button
+        type="button"
+        role="menuitem"
+        class="flex cursor-pointer items-center gap-2 rounded-field px-3 py-2 text-left text-sm text-base-content hover:bg-base-200"
+        (click)="openChannelSettings(channel)"
+      >
+        <i class="pi pi-cog"></i>
+        Channel setting
+      </button>
+    </div>
+  }
+</p-popover>
 
 <p-dialog
   header="Create channel"

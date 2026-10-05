@@ -44,6 +44,7 @@ describe('ChannelViewComponent', () => {
       items,
       nextCursor: null,
     });
+    httpMock.expectOne('/api/workspaces/w1/channels/c1/read').flush(null);
   }
 
   function flushPromises(): Promise<void> {
@@ -100,6 +101,9 @@ describe('ChannelViewComponent', () => {
 
     // Assert
     expect(fixture.componentInstance.messages().length).toBe(0);
+    const read = httpMock.expectOne('/api/workspaces/w1/channels/c1/read');
+    expect(read.request.method).toBe('POST');
+    read.flush(null);
   });
 
   it('should send a message, append it and clear the form', () => {
@@ -239,6 +243,7 @@ describe('ChannelViewComponent', () => {
     await flushPromises();
     const req = httpMock.expectOne('/api/workspaces/w1/channels/c2/messages?pageSize=50');
     req.flush({ items: [message({ id: 'n1', channelId: 'c2' })], nextCursor: null });
+    httpMock.expectOne('/api/workspaces/w1/channels/c2/read').flush(null);
     await flushPromises();
 
     // Assert
@@ -409,5 +414,65 @@ describe('ChannelViewComponent', () => {
     // Assert
     expect(fakeSignalRService.leaveChannelAsync).toHaveBeenCalledWith('c1');
     expect(fixture.componentInstance.messages().length).toBe(0);
+  });
+
+  describe('scrolling', () => {
+    function scrollContainer(): HTMLElement {
+      const element = fixture.nativeElement.querySelector('.overflow-y-auto') as HTMLElement;
+      Object.defineProperty(element, 'scrollHeight', { configurable: true, value: 1000 });
+      Object.defineProperty(element, 'clientHeight', { configurable: true, value: 400 });
+      return element;
+    }
+
+    it('should scroll to the newest message when the history loads', async () => {
+      fixture.detectChanges();
+      const element = scrollContainer();
+
+      flushHistory([message({ id: 'm1' })]);
+      await fixture.whenStable();
+
+      expect(element.scrollTop).toBe(1000);
+    });
+
+    it('should scroll to the bottom after sending a message', async () => {
+      fixture.detectChanges();
+      const element = scrollContainer();
+      flushHistory();
+      await fixture.whenStable();
+      element.scrollTop = 0;
+      fixture.componentInstance.sendForm.setValue({ content: 'hi' });
+
+      fixture.componentInstance.onSend();
+      httpMock.expectOne(messagesUrl).flush(message({ id: 'm2', content: 'hi' }));
+      await fixture.whenStable();
+
+      expect(element.scrollTop).toBe(1000);
+    });
+
+    it('should follow an incoming message when the user is at the bottom', async () => {
+      fixture.detectChanges();
+      const element = scrollContainer();
+      flushHistory();
+      await fixture.whenStable();
+      element.scrollTop = 590;
+
+      fakeSignalRService.messageReceived$.next(message({ id: 'm3', senderId: 'u2' }));
+      await fixture.whenStable();
+
+      expect(element.scrollTop).toBe(1000);
+    });
+
+    it('should not move the scroll position for an incoming message when reading older history', async () => {
+      fixture.detectChanges();
+      const element = scrollContainer();
+      flushHistory();
+      await fixture.whenStable();
+      element.scrollTop = 100;
+
+      fakeSignalRService.messageReceived$.next(message({ id: 'm3', senderId: 'u2' }));
+      await fixture.whenStable();
+
+      expect(element.scrollTop).toBe(100);
+    });
   });
 });

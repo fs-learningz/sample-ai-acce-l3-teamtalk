@@ -3,7 +3,10 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { Subject } from 'rxjs';
 import { vi } from 'vitest';
+import { AuthService } from '../../../core/auth/auth.service';
+import { ChannelActivity, SignalRService } from '../../../core/realtime/signalr.service';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 
 @Component({ template: '' })
@@ -15,13 +18,33 @@ class WorkspaceSettingsStubComponent {}
 describe('WorkspaceShellComponent', () => {
   let fixture: ComponentFixture<WorkspaceShellComponent>;
   let httpMock: HttpTestingController;
+  let channelActivity$: Subject<ChannelActivity>;
+  let fakeSignalRService: {
+    connectAsync: ReturnType<typeof vi.fn>;
+    joinWorkspaceAsync: ReturnType<typeof vi.fn>;
+    leaveWorkspaceAsync: ReturnType<typeof vi.fn>;
+    channelActivity$: Subject<ChannelActivity>;
+  };
 
   beforeEach(async () => {
+    channelActivity$ = new Subject<ChannelActivity>();
+    fakeSignalRService = {
+      connectAsync: vi.fn(async () => undefined),
+      joinWorkspaceAsync: vi.fn(async () => undefined),
+      leaveWorkspaceAsync: vi.fn(async () => undefined),
+      channelActivity$,
+    };
     await TestBed.configureTestingModule({
       imports: [WorkspaceShellComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: SignalRService, useValue: fakeSignalRService },
+        { provide: AuthService, useValue: {
+            currentUser: () => ({ userId: 'me', email: '', displayName: '' }),
+            isAuthenticated: () => true,
+          },
+        },
         provideRouter([
           { path: 'workspaces', component: WorkspaceListStubComponent },
           { path: 'workspaces/:workspaceId/settings', component: WorkspaceSettingsStubComponent },
@@ -393,5 +416,185 @@ describe('WorkspaceShellComponent', () => {
     expect(iconUrl).toBeTruthy();
     expect(revokeSpy).toHaveBeenCalledWith(iconUrl);
     revokeSpy.mockRestore();
+  });
+
+  describe('channel menu', () => {
+    function channelBody(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'c1',
+        workspaceId: 'w1',
+        name: 'general',
+        type: 'Public',
+        createdByUserId: 'u1',
+        createdAtUtc: new Date().toISOString(),
+        isPinned: false,
+        isMuted: false,
+        hasUnread: true,
+        ...overrides,
+      };
+    }
+
+    function initWithChannels(channels: unknown[]): void {
+      fixture.detectChanges();
+      httpMock.expectOne('/api/workspaces/w1').flush(workspaceBody());
+      httpMock.expectOne('/api/workspaces/w1/channels').flush(channels);
+      httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+      fixture.detectChanges();
+    }
+
+    it('should render an options button for every channel', () => {
+      initWithChannels([channelBody(), channelBody({ id: 'c2', name: 'random' })]);
+
+      const buttons = fixture.nativeElement.querySelectorAll('button[aria-label^="Options for"]');
+
+      expect(buttons.length).toBe(2);
+    });
+
+    it('should mark a channel as read and clear its unread flag', () => {
+      initWithChannels([channelBody()]);
+      const channel = fixture.componentInstance.channels()[0];
+
+      fixture.componentInstance.markAsRead(channel);
+      const req = httpMock.expectOne('/api/workspaces/w1/channels/c1/read');
+      req.flush(null);
+
+      expect(req.request.method).toBe('POST');
+      expect(fixture.componentInstance.channels()[0].hasUnread).toBe(false);
+    });
+
+    it('should pin a channel and move it above unpinned channels', () => {
+      initWithChannels([channelBody({ id: 'c1', name: 'general' }), channelBody({ id: 'c2', name: 'random' })]);
+      const random = fixture.componentInstance.channels()[1];
+
+      fixture.componentInstance.togglePin(random);
+      const req = httpMock.expectOne('/api/workspaces/w1/channels/c2/preferences');
+      req.flush(null);
+
+      expect(req.request.body).toEqual({ isPinned: true, isMuted: false });
+      expect(fixture.componentInstance.channels().map((c) => c.id)).toEqual(['c2', 'c1']);
+    });
+
+    it('should return an unpinned channel to its alphabetical position', () => {
+      initWithChannels([
+        channelBody({ id: 'a', name: 'alpha' }),
+        channelBody({ id: 'b', name: 'bravo' }),
+        channelBody({ id: 'c', name: 'charlie' }),
+      ]);
+      const charlie = fixture.componentInstance.channels()[2];
+
+      fixture.componentInstance.togglePin(charlie);
+      httpMock.expectOne('/api/workspaces/w1/channels/c/preferences').flush(null);
+      expect(fixture.componentInstance.channels().map((c) => c.id)).toEqual(['c', 'a', 'b']);
+
+      fixture.componentInstance.togglePin(fixture.componentInstance.channels()[0]);
+      httpMock.expectOne('/api/workspaces/w1/channels/c/preferences').flush(null);
+
+      expect(fixture.componentInstance.channels().map((c) => c.id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should mute a channel', () => {
+      initWithChannels([channelBody()]);
+      const channel = fixture.componentInstance.channels()[0];
+
+      fixture.componentInstance.toggleMute(channel);
+      const req = httpMock.expectOne('/api/workspaces/w1/channels/c1/preferences');
+      req.flush(null);
+
+      expect(req.request.body).toEqual({ isPinned: false, isMuted: true });
+      expect(fixture.componentInstance.channels()[0].isMuted).toBe(true);
+    });
+
+    it('should keep the channel unchanged and show an error when the update fails', () => {
+      initWithChannels([channelBody()]);
+      const channel = fixture.componentInstance.channels()[0];
+
+      fixture.componentInstance.togglePin(channel);
+      httpMock
+        .expectOne('/api/workspaces/w1/channels/c1/preferences')
+        .flush(null, { status: 500, statusText: 'Server Error' });
+
+      expect(fixture.componentInstance.channels()[0].isPinned).toBe(false);
+      expect(fixture.componentInstance.errorMessage()).toBe(
+        'Could not update the channel. Please try again.',
+      );
+    });
+
+    it('should navigate to the channel settings', () => {
+      initWithChannels([channelBody()]);
+      const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      fixture.componentInstance.openChannelSettings(fixture.componentInstance.channels()[0]);
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/workspaces', 'w1', 'channels', 'c1', 'settings']);
+    });
+  });
+
+  describe('live unread indicators', () => {
+    function channelBody(id: string, overrides: Record<string, unknown> = {}) {
+      return {
+        id,
+        workspaceId: 'w1',
+        name: id,
+        type: 'Public',
+        createdByUserId: 'u1',
+        createdAtUtc: new Date().toISOString(),
+        isPinned: false,
+        isMuted: false,
+        hasUnread: false,
+        ...overrides,
+      };
+    }
+
+    function initWithChannels(channels: unknown[]): void {
+      fixture.detectChanges();
+      httpMock.expectOne('/api/workspaces/w1').flush(workspaceBody());
+      httpMock.expectOne('/api/workspaces/w1/channels').flush(channels);
+      httpMock.expectOne('/api/workspaces/w1/members').flush([]);
+    }
+
+    it('should join the workspace realtime group on init', async () => {
+      initWithChannels([]);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(fakeSignalRService.connectAsync).toHaveBeenCalled();
+      expect(fakeSignalRService.joinWorkspaceAsync).toHaveBeenCalledWith('w1');
+    });
+
+    it('should flag a channel as unread when another user posts in it', () => {
+      initWithChannels([channelBody('c1'), channelBody('c2')]);
+
+      channelActivity$.next({ channelId: 'c2', senderId: 'other' });
+
+      expect(fixture.componentInstance.channels().find((c) => c.id === 'c2')?.hasUnread).toBe(true);
+      expect(fixture.componentInstance.channels().find((c) => c.id === 'c1')?.hasUnread).toBe(false);
+    });
+
+    it('should ignore activity caused by the current user', () => {
+      initWithChannels([channelBody('c1')]);
+
+      channelActivity$.next({ channelId: 'c1', senderId: 'me' });
+
+      expect(fixture.componentInstance.channels()[0].hasUnread).toBe(false);
+    });
+
+    it('should mark the channel as read instead when it is the one being viewed', () => {
+      initWithChannels([channelBody('c1')]);
+      vi.spyOn(TestBed.inject(Router), 'url', 'get').mockReturnValue('/workspaces/w1/channels/c1');
+
+      channelActivity$.next({ channelId: 'c1', senderId: 'other' });
+
+      httpMock.expectOne('/api/workspaces/w1/channels/c1/read').flush(null);
+      expect(fixture.componentInstance.channels()[0].hasUnread).toBe(false);
+    });
+
+    it('should reload the channels when activity arrives for an unknown channel', () => {
+      initWithChannels([channelBody('c1')]);
+
+      channelActivity$.next({ channelId: 'new', senderId: 'other' });
+
+      httpMock.expectOne('/api/workspaces/w1/channels').flush([channelBody('c1'), channelBody('new')]);
+      expect(fixture.componentInstance.channels().length).toBe(2);
+    });
   });
 });

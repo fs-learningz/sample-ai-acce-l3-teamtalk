@@ -1,6 +1,7 @@
 using ErrorOr;
 using TeamTalk.Application.Channels.Contracts;
 using TeamTalk.Application.Common.Errors;
+using TeamTalk.Application.Common.Interfaces;
 using TeamTalk.Domain.Entities;
 using TeamTalk.Domain.Repositories;
 
@@ -11,12 +12,18 @@ public class ChannelService : IChannelService
     private readonly IChannelRepository _channelRepository;
     private readonly IChannelMemberRepository _channelMemberRepository;
     private readonly IWorkspaceMemberRepository _workspaceMemberRepository;
+    private readonly IChannelUserStateRepository _channelUserStateRepository;
+    private readonly IChannelQueryService _channelQueryService;
 
     public ChannelService(
         IChannelRepository channelRepository,
         IChannelMemberRepository channelMemberRepository,
-        IWorkspaceMemberRepository workspaceMemberRepository)
+        IWorkspaceMemberRepository workspaceMemberRepository,
+        IChannelUserStateRepository channelUserStateRepository,
+        IChannelQueryService channelQueryService)
     {
+        _channelUserStateRepository = channelUserStateRepository;
+        _channelQueryService = channelQueryService;
         _channelRepository = channelRepository;
         _channelMemberRepository = channelMemberRepository;
         _workspaceMemberRepository = workspaceMemberRepository;
@@ -67,9 +74,132 @@ public class ChannelService : IChannelService
             return WorkspaceErrors.NotAMember;
         }
 
-        var channels = await _channelRepository.GetVisibleToUserAsync(workspaceId, userId);
+        var channels = await _channelQueryService.GetVisibleAsync(workspaceId, userId);
 
-        return channels.Select(ToResponse).ToList();
+        return channels.ToList();
+    }
+
+    public async Task<ErrorOr<ChannelDetailsResponse>> GetDetailsAsync(Guid userId, Guid workspaceId, Guid channelId)
+    {
+        var access = await GetAccessibleChannelAsync(userId, workspaceId, channelId);
+
+        if (access.IsError)
+        {
+            return access.FirstError;
+        }
+
+        var details = await _channelQueryService.GetDetailsAsync(channelId, userId);
+
+        if (details is null)
+        {
+            return ChannelErrors.NotFound;
+        }
+
+        return details;
+    }
+
+    public async Task<ErrorOr<Success>> MarkReadAsync(Guid userId, Guid workspaceId, Guid channelId)
+    {
+        var access = await GetAccessibleChannelAsync(userId, workspaceId, channelId);
+
+        if (access.IsError)
+        {
+            return access.FirstError;
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var state = await _channelUserStateRepository.GetAsync(channelId, userId);
+
+        if (state is null)
+        {
+            state = new ChannelUserState(Guid.CreateVersion7(), channelId, userId);
+            state.MarkRead(nowUtc);
+            await _channelUserStateRepository.AddAsync(state);
+
+            return Result.Success;
+        }
+
+        state.MarkRead(nowUtc);
+        await _channelUserStateRepository.UpdateAsync(state);
+
+        return Result.Success;
+    }
+
+    public async Task<ErrorOr<Success>> UpdatePreferencesAsync(
+        Guid userId,
+        Guid workspaceId,
+        Guid channelId,
+        UpdateChannelPreferencesRequest request)
+    {
+        var access = await GetAccessibleChannelAsync(userId, workspaceId, channelId);
+
+        if (access.IsError)
+        {
+            return access.FirstError;
+        }
+
+        var state = await _channelUserStateRepository.GetAsync(channelId, userId);
+
+        if (state is null)
+        {
+            state = new ChannelUserState(Guid.CreateVersion7(), channelId, userId);
+            state.SetPreferences(request.IsPinned, request.IsMuted);
+            await _channelUserStateRepository.AddAsync(state);
+
+            return Result.Success;
+        }
+
+        state.SetPreferences(request.IsPinned, request.IsMuted);
+        await _channelUserStateRepository.UpdateAsync(state);
+
+        return Result.Success;
+    }
+
+    public async Task<ErrorOr<Success>> LeaveAsync(Guid userId, Guid workspaceId, Guid channelId)
+    {
+        var access = await GetAccessibleChannelAsync(userId, workspaceId, channelId);
+
+        if (access.IsError)
+        {
+            return access.FirstError;
+        }
+
+        var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId);
+
+        if (isChannelMember is false)
+        {
+            return ChannelErrors.NotAMember;
+        }
+
+        await _channelMemberRepository.RemoveAsync(channelId, userId);
+
+        return Result.Success;
+    }
+
+    public async Task<ErrorOr<Success>> DeleteAsync(Guid userId, Guid workspaceId, Guid channelId)
+    {
+        var workspaceMember = await _workspaceMemberRepository.GetAsync(workspaceId, userId);
+
+        if (workspaceMember is null)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        var channel = await _channelRepository.GetByIdAsync(channelId);
+
+        if (channel is null || channel.WorkspaceId != workspaceId)
+        {
+            return ChannelErrors.NotFound;
+        }
+
+        if (workspaceMember.IsAdmin() is false)
+        {
+            return WorkspaceErrors.NotAnAdmin;
+        }
+
+        await _channelRepository.DeleteAsync(channelId);
+
+        return Result.Success;
     }
 
     public async Task<ErrorOr<Success>> JoinAsync(Guid userId, Guid workspaceId, Guid channelId)
@@ -172,6 +302,35 @@ public class ChannelService : IChannelService
         }
 
         return Result.Success;
+    }
+
+    private async Task<ErrorOr<Channel>> GetAccessibleChannelAsync(Guid userId, Guid workspaceId, Guid channelId)
+    {
+        var isWorkspaceMember = await _workspaceMemberRepository.IsMemberAsync(workspaceId, userId);
+
+        if (isWorkspaceMember is false)
+        {
+            return WorkspaceErrors.NotAMember;
+        }
+
+        var channel = await _channelRepository.GetByIdAsync(channelId);
+
+        if (channel is null || channel.WorkspaceId != workspaceId)
+        {
+            return ChannelErrors.NotFound;
+        }
+
+        if (channel.IsPublic() is false)
+        {
+            var isChannelMember = await _channelMemberRepository.IsMemberAsync(channelId, userId);
+
+            if (isChannelMember is false)
+            {
+                return ChannelErrors.NotVisible;
+            }
+        }
+
+        return channel;
     }
 
     private static ChannelResponse ToResponse(Channel channel)

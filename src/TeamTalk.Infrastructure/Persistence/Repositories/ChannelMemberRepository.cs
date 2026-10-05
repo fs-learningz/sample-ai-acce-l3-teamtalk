@@ -19,6 +19,13 @@ public class ChannelMemberRepository : IChannelMemberRepository
             .AnyAsync(m => m.ChannelId == channelId && m.UserId == userId);
     }
 
+    public async Task RemoveAsync(Guid channelId, Guid userId)
+    {
+        await _dbContext.ChannelMembers
+            .Where(m => m.ChannelId == channelId && m.UserId == userId)
+            .ExecuteDeleteAsync();
+    }
+
     public async Task AddAsync(ChannelMember member)
     {
         await _dbContext.ChannelMembers.AddAsync(member);

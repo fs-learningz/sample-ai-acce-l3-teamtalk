@@ -1,20 +1,32 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { Popover, PopoverModule } from 'primeng/popover';
 import { SelectModule } from 'primeng/select';
-import { ChannelResponse, ChannelType } from '../../../core/models/channel.model';
+import {
+  ChannelResponse,
+  ChannelType,
+  UpdateChannelPreferencesRequest,
+} from '../../../core/models/channel.model';
 import { WorkspaceResponse, WorkspaceRole } from '../../../core/models/workspace.model';
 import { WorkspaceInvitationResponse } from '../../../core/models/invitation.model';
 import { WorkspaceMemberResponse } from '../../../core/models/member.model';
 import { ChannelService } from '../../../core/channels/channel.service';
 import { WorkspaceService } from '../../../core/workspaces/workspace.service';
 import { InvitationService } from '../../../core/invitations/invitation.service';
+import { AuthService } from '../../../core/auth/auth.service';
+import { ChannelActivity, SignalRService } from '../../../core/realtime/signalr.service';
 import { MemberService } from '../../../core/members/member.service';
 import { UserMenuComponent } from '../../../shared/user-menu/user-menu.component';
 import { WorkspaceIconComponent } from '../../../shared/workspace-icon/workspace-icon.component';
+
+function compareOrdinal(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 
 interface ChannelTypeOption {
   label: string;
@@ -34,6 +46,7 @@ interface WorkspaceRoleOption {
     ButtonModule,
     DialogModule,
     InputTextModule,
+    PopoverModule,
     SelectModule,
     UserMenuComponent,
     WorkspaceIconComponent,
@@ -48,6 +61,10 @@ export class WorkspaceShellComponent implements OnInit, OnDestroy {
   private readonly memberService = inject(MemberService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
+  private readonly signalRService = inject(SignalRService);
+  private readonly popover = viewChild.required(Popover);
+  private readonly subscriptions = new Subscription();
 
   readonly workspaceId = this.route.snapshot.paramMap.get('workspaceId')!;
   readonly workspace = signal<WorkspaceResponse | null>(null);
@@ -55,6 +72,7 @@ export class WorkspaceShellComponent implements OnInit, OnDestroy {
   readonly channels = signal<ChannelResponse[]>([]);
   readonly invitations = signal<WorkspaceInvitationResponse[]>([]);
   readonly members = signal<WorkspaceMemberResponse[]>([]);
+  readonly menuChannel = signal<ChannelResponse | null>(null);
   readonly isCreateDialogVisible = signal(false);
   readonly isInviteDialogVisible = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -97,9 +115,24 @@ export class WorkspaceShellComponent implements OnInit, OnDestroy {
     });
     this.loadChannels();
     this.loadMembers();
+
+    this.subscriptions.add(
+      this.channelService.channelRead$.subscribe((channelId) =>
+        this.patchChannel(channelId, { hasUnread: false }),
+      ),
+    );
+    this.subscriptions.add(
+      this.signalRService.channelActivity$.subscribe((activity) => this.onChannelActivity(activity)),
+    );
+    void this.joinWorkspaceRealtime();
+    this.subscriptions.add(
+      this.channelService.channelRemoved$.subscribe(() => this.loadChannels()),
+    );
   }
 
   ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    void this.signalRService.leaveWorkspaceAsync(this.workspaceId).catch(() => undefined);
     this.revokeWorkspaceIconUrl();
   }
 
@@ -193,6 +226,82 @@ export class WorkspaceShellComponent implements OnInit, OnDestroy {
         this.errorMessage.set('Could not create the channel. Please try again.');
       },
     });
+  }
+
+  private async joinWorkspaceRealtime(): Promise<void> {
+    try {
+      await this.signalRService.connectAsync();
+      await this.signalRService.joinWorkspaceAsync(this.workspaceId);
+    } catch {
+      // Live unread indicators are a nicety; the list is still correct after the next reload.
+    }
+  }
+
+  private onChannelActivity(activity: ChannelActivity): void {
+    if (activity.senderId === this.authService.currentUser()?.userId) {
+      return;
+    }
+
+    const channel = this.channels().find((c) => c.id === activity.channelId);
+
+    if (!channel) {
+      // A channel we have not seen yet (for example one created after this page loaded).
+      this.loadChannels();
+      return;
+    }
+
+    if (this.router.url.includes(`/channels/${activity.channelId}`)) {
+      // The user is looking at this channel right now, so the message is read on arrival.
+      this.channelService.markReadAsync(this.workspaceId, activity.channelId).subscribe({
+        error: () => this.patchChannel(activity.channelId, { hasUnread: true }),
+      });
+      return;
+    }
+
+    this.patchChannel(activity.channelId, { hasUnread: true });
+  }
+
+  toggleChannelMenu(event: Event, channel: ChannelResponse): void {
+    this.menuChannel.set(channel);
+    this.popover().toggle(event);
+  }
+
+  markAsRead(channel: ChannelResponse): void {
+    this.popover().hide();
+    this.channelService.markReadAsync(this.workspaceId, channel.id).subscribe({
+      error: () => this.errorMessage.set('Could not mark the channel as read.'),
+    });
+  }
+
+  toggleMute(channel: ChannelResponse): void {
+    this.updatePreferences(channel, { isPinned: channel.isPinned, isMuted: !channel.isMuted });
+  }
+
+  togglePin(channel: ChannelResponse): void {
+    this.updatePreferences(channel, { isPinned: !channel.isPinned, isMuted: channel.isMuted });
+  }
+
+  openChannelSettings(channel: ChannelResponse): void {
+    this.popover().hide();
+    void this.router.navigate(['/workspaces', this.workspaceId, 'channels', channel.id, 'settings']);
+  }
+
+  private updatePreferences(channel: ChannelResponse, preferences: UpdateChannelPreferencesRequest): void {
+    this.popover().hide();
+    this.errorMessage.set(null);
+    this.channelService.updatePreferencesAsync(this.workspaceId, channel.id, preferences).subscribe({
+      next: () => this.patchChannel(channel.id, preferences),
+      error: () => this.errorMessage.set('Could not update the channel. Please try again.'),
+    });
+  }
+
+  private patchChannel(channelId: string, changes: Partial<ChannelResponse>): void {
+    this.channels.update((current) =>
+      current
+        .map((c) => (c.id === channelId ? { ...c, ...changes } : c))
+        // Same order as the server: pinned first, then by name (ordinal).
+        .sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || compareOrdinal(a.name, b.name)),
+    );
   }
 
   openChannel(channel: ChannelResponse): void {

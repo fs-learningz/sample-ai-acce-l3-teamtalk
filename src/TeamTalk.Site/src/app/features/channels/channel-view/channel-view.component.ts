@@ -1,11 +1,22 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  OnDestroy,
+  OnInit,
+  afterNextRender,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { AuthService } from '../../../core/auth/auth.service';
+import { ChannelService } from '../../../core/channels/channel.service';
 import { ChannelMessageService } from '../../../core/messages/channel-message.service';
 import { MessageResponse } from '../../../core/models/message.model';
 import { SignalRService } from '../../../core/realtime/signalr.service';
@@ -20,8 +31,12 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly channelMessageService = inject(ChannelMessageService);
+  private readonly channelService = inject(ChannelService);
   private readonly signalRService = inject(SignalRService);
   readonly authService = inject(AuthService);
+  private readonly injector = inject(Injector);
+
+  private readonly scrollContainer = viewChild<ElementRef<HTMLElement>>('scrollContainer');
 
   readonly workspaceId = this.route.snapshot.paramMap.get('workspaceId')!;
   channelId = '';
@@ -73,7 +88,7 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
     const content = this.sendForm.getRawValue().content;
     this.channelMessageService.sendAsync(this.workspaceId, this.channelId, { content }).subscribe({
       next: (message) => {
-        this.applyIncoming(message);
+        this.applyIncoming(message, true);
         this.sendForm.reset({ content: '' });
       },
       error: () => this.errorMessage.set('Could not send the message. Please try again.'),
@@ -136,15 +151,50 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
 
   private loadHistory(): void {
     this.channelMessageService.getHistoryAsync(this.workspaceId, this.channelId, null, 50).subscribe({
-      next: (page) => this.messages.set([...page.items].reverse()),
+      next: (page) => {
+        this.messages.set([...page.items].reverse());
+        this.scrollToBottom();
+        this.markChannelRead();
+      },
       error: () => this.errorMessage.set('Could not load messages for this channel.'),
     });
   }
 
-  private applyIncoming(message: MessageResponse): void {
+  private markChannelRead(): void {
+    // Best effort: failing to record the read marker must not disturb the conversation.
+    this.channelService.markReadAsync(this.workspaceId, this.channelId).subscribe({ error: () => undefined });
+  }
+
+  private scrollToBottom(): void {
+    afterNextRender(
+      () => {
+        const element = this.scrollContainer()?.nativeElement;
+        if (element) {
+          element.scrollTop = element.scrollHeight;
+        }
+      },
+      { injector: this.injector },
+    );
+  }
+
+  private isNearBottom(): boolean {
+    const element = this.scrollContainer()?.nativeElement;
+    if (!element) {
+      return true;
+    }
+
+    return element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+  }
+
+  private applyIncoming(message: MessageResponse, forceScroll = false): void {
     if (message.channelId !== this.channelId) {
       return;
     }
+
+    // Only follow new messages when the user is already at the bottom (or sent it themselves),
+    // so reading older history is not interrupted.
+    const isNew = this.messages().every((m) => m.id !== message.id);
+    const shouldScroll = forceScroll || (isNew && this.isNearBottom());
 
     this.messages.update((current) => {
       const index = current.findIndex((m) => m.id === message.id);
@@ -156,5 +206,9 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
       next[index] = message;
       return next;
     });
+
+    if (shouldScroll) {
+      this.scrollToBottom();
+    }
   }
 }
